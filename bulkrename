@@ -1,0 +1,109 @@
+#!/usr/bin/python3
+
+import sys, os
+import tempfile
+import getopt
+
+
+mv_args = ""
+
+def generate_script(old_filenames, new_filenames, cmdpath):
+    mm = max(map(len, old_filenames))
+    def rename_cmd(old, new):
+        align = " "*(mm - len(old))
+        return f"mv {mv_args} \"{old}\" {align} \"{new}\"\n"
+
+    script_lines = [rename_cmd(old, new) 
+            for (old, new) in zip(old_filenames, new_filenames) if old != new]
+
+    script_content = "".join(script_lines)
+    cmdfile = open(cmdpath, "wb")
+    cmdfile.write(script_content.encode("utf-8"))
+    cmdfile.close()
+
+def edit_file(path):
+    editor = os.environ.get('EDITOR', 'nano')
+    os.system('%s "%s"' % (editor, path))
+
+def read_filenames(listpath):
+    listfile = open(listpath, 'r')
+    new_filenames = listfile.read().split("\n")
+    listfile.close()
+    return new_filenames
+
+def main(argv, flags):
+    # Create and edit the file list
+    filenames = argv[:]
+    listfile = tempfile.NamedTemporaryFile(delete=False)
+    listpath = listfile.name
+
+    listfile.write("\n".join(filenames).encode("utf-8"))
+    listfile.close()
+
+    # Add enumeration to the filenames 
+    if flags.__contains__('enumerate'):
+        tmp = tempfile.NamedTemporaryFile(delete=False)
+        os.system(f'nl -n rz -w2 -s\'-\' "{listpath}" > "{tmp.name}"')
+        os.system(f'mv {tmp.name} {listpath}')
+
+    edit_file(listpath)
+    new_filenames = read_filenames(listpath)
+
+    if all(a == b for a, b in zip(filenames, new_filenames)):
+        print("No renaming to be done!")
+        os.unlink(listpath)
+        return
+
+    # Generate script
+    cmdfile = tempfile.NamedTemporaryFile(delete=False)
+    cmdpath = cmdfile.name
+
+    generate_script(filenames, new_filenames, cmdpath)
+
+    ## User input loop.
+    while True:
+        print("Generated script:")
+        os.system('/bin/cat "%s"' % cmdfile.name)
+
+        print("\nDo you want to continue:") 
+        print("    Yes: Execute,")
+        print("    No/Quit: Quit,")
+        print("    Edit: Go Back to editing,")
+        print("    Script: Modify generated script")
+
+        e = input("\n[Edit/yes/no/quit/script] ")
+        if e == "" or e.lower()[0] == "e":
+            edit_file(listpath)
+            new_filenames = read_filenames(listpath)
+            generate_script(filenames, new_filenames, cmdpath)
+        elif e.lower()[0] == "y":
+            os.system('/bin/sh "%s"' % cmdpath)
+            break
+        elif e.lower()[0] == "n" or e.lower()[0] == "q":
+            break
+        elif e.lower()[0] == "s":
+            edit_file(cmdpath)
+
+    os.unlink(listpath)
+    os.unlink(cmdpath)
+
+## TODO: Write better Help message
+def helpmessage():
+    print('bulkrename -n')
+
+if __name__ == '__main__':
+    flags = []
+
+    ## TODO: Add ´mv´ args as opt
+    try:
+        opts, argv = getopt.getopt(sys.argv[1:], "hn", ["enumerate"]);
+    except getopt.GetoptError:
+        helpmessage()
+    for opt, arg in opts:
+        if opt == '-h': helpmessage();
+        elif opt in ('-n', '--enumerate'):
+            flags.append('enumerate')
+
+    
+    main(argv, flags)
+

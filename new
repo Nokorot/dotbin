@@ -1,0 +1,15 @@
+#!/bin/sh
+
+templates="$HOME/Templates"
+
+template=$1
+([ -z "$1" ] || [ "$1" = "-" ]) && template=$( ls $templates | dmenu )
+[ -z "$template" ] && exit 
+
+dest=$2
+([ -z "$2" ] || [ "$2" = "-" ]) && dest=$( echo "$template" | dmenu )
+[ -z "$dest" ] && exit 
+
+
+cp -ir "$templates/$template" "$dest"
+

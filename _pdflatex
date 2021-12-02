@@ -1,0 +1,11 @@
+#!/bin/sh
+
+# echo "$1.tex"
+mkdir -p .log
+
+# pdflatex -output-directory=".log"  -synctex=1 -interaction=nonstopmode "$1.tex"
+pdflatex -output-directory=".log" -interaction=nonstopmode "$1.tex"
+mv ".log/$1.pdf" .
+
+
+

@@ -1,0 +1,85 @@
+#!/bin/bash 
+
+
+player="vlc" # vlc
+
+
+mk_ply_list() {
+	for vf in "$@"; do 
+		file --mime-type "$vf" | grep "video/" >/dev/null \
+				&& echo $vf; 
+	done
+}
+
+ply_list() {
+	v=$( grep -v "^#" "$1" | sed 1q )
+	while [ -n "$v" ]; do
+		i3-msg "workspace $WSmovie; border pixel 0;"
+		$player "$v"
+
+		[ "$(printf "next\\nquit" | dmenu -i)" = "quit" ] && break;
+
+		sed -i '0,/^[^#]/ s/^#*/#/' "$1"
+
+	 	v=$( grep -v "^#" "$1" | sed 1q )
+	done
+	[ "$(printf "No\\nYes" | dmenu -i -p "Do you want to mark this vidoe as watched?")" = "Yes" ] && \
+		sed -i '0,/^[^#]/ s/^#*/#/' "$1"
+}
+
+
+
+# If $1 is a dir, check if it contains a playlist if not, create one
+if [ -d "$1" ] ; then  
+	# TODO: Only add video files
+	# Also might want to store the plylist in .cache instead.
+    cd "$1"
+	ls | grep ^list.ply$ >/dev/null || \
+			mk_ply_list * > list.ply  
+	ply_list list.ply
+fi
+
+
+# If $1 is a playlist play it
+if [[ "$1" =~ \.ply$ ]]; then 
+	ply_list "$1"
+fi
+
+# If $1 is a video file, check if there is a plylist in the current/relevant directory 
+#  				If it exist, check if $1 is listed, if not add it and then play it 
+# 				If such a file does not exist make one, add $1 and play
+# if there are multiple aguments add all of them to the playlist of $@
+# TODO: Store in .cache
+if [ -f "$1" ]; then 
+	file --mime-type "$1" | grep "video/" >/dev/null && \
+			mk_ply_list "$@" > "tmp.ply"
+	ply_list "tmp.ply"
+fi
+
+
+
+# # E01 Now What.mkv
+# # E02 Selfish.mkv
+# # E03 Unwritten.mkv
+# # E04 Massage Therapy.mkv
+# # E05 Unplanned Parenthood.mkv
+# # E06 Office Politics.mkv
+# # E07 A Pox On Our House.mkv
+# E08 Small Sacrifices.mkv
+# E09 Larger Than Life.mkv
+# E10 Carrot Or Stick.mkv
+# E11 Family Practice.mkv
+# E12 You Must Remember This.mkv
+# E13 Two Stories.mkv
+# E14 Recession Proof.mkv
+# E15 Bombshells.mkv
+# E16 Out Of The Chute.mkv
+# E17 Fall From Grace.mkv
+# E18 The Dig.mkv
+# E19 Last Temptation.mkv
+# E20 Changes.mkv
+# E21 The Fix.mkv
+# E22 After Hours.mkv
+# E23 Moving On.mkv
+# sample.mkv
+

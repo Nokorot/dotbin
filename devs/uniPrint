@@ -1,0 +1,13 @@
+#!/usr/bin/python2
+
+import sys, os
+
+
+attach = map(lambda x: os.path.abspath(x), sys.argv[1:]);
+cmd = "thunderbird -compose \"\
+subject='Uni Print',\
+to='EveryonePrint@ed.ac.uk',\
+attachment='%s',\
+from='s1706798@sms.ed.ac.uk'\"" % (','.join(attach))
+
+os.system(cmd);

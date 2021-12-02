@@ -1,0 +1,52 @@
+#!/bin/bash
+
+NOTEDIR="$NOTES"
+
+# TODO
+dmenu_nav_history() {
+    echo "Hey"
+}
+
+dmenu_browse() {
+    pushd "$NOTEDIR"
+    path="/$(find -type f -not -path "*/.*" | grep '.pdf$\|.djvu$' | dmenu -l 20)" || return;
+   # path=""
+    # while [ -d "$NOTEDIR/$path" ]; do
+    #     path+="/$(ls --group-directories-first "$NOTEDIR/$path" | dmenu -l 20)" || return;
+    # done
+    open_file "$path"
+}
+
+open_file() {
+    gio open "$NOTEDIR/$1";
+}
+
+main() {
+    echo "$NOTEDIR"
+
+    [ -z $BROWSE ] || { dmenu_browse; return; }
+    [ -z "$1" ] && { dmenu_nav_history; return; }
+    open_file $@
+}
+
+_usage() { echo ""; }
+
+_invopt() {
+    echo "Incorrect options provided '$1'"; usage; exit 1
+}
+
+# Read arguments
+POSITIONAL=()
+while [[ $# -gt 0 ]]; do
+case $1 in
+    --browse) BROWSE=true ;;
+    --note-dir) NOTEDIR="$2" ; shift ;;
+    -h|-?|--help) _usage ;;
+    -*) _invopt ;;
+    *) POSITIONAL+=("$1") ;;
+esac; shift;
+done
+set -- "${POSITIONAL[@]}"
+
+main "$@"
+

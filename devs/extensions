@@ -1,0 +1,9 @@
+#!/bin/bash
+
+while read -r i; do 
+	filename=$(basename -- "$i"); 
+	extension="${filename##*.}"; 
+	if ! [[ -d $i ]] && [[ $i == *.* ]]; then 
+		echo 	$extension; 
+	fi
+done | sort -u

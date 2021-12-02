@@ -1,0 +1,67 @@
+#!/bin/bash
+
+latex_format=standalone
+texfile="file.tex"
+
+# Argument Options:
+CONVERT=false
+ARTICLE=false
+NONSTOP=false
+OPEN=true
+
+# Read arguments
+POSITIONAL=()
+while [[ $# -gt 0 ]]; do
+case $1 in
+    -a|--article)
+        ARTICLE=true
+        format=article
+        shift ;;
+    -f|--format)
+        CONVERT=true
+        format=$2
+        shift 2 ;;
+    -no|--not-open-pdf) 
+        OPEN=false
+        shift ;;
+    # -xc|--xclip)
+    #     CLIPBOARD=true
+    #     format=article
+    #     shift ;;
+    -nsm|--nonstopmode) 
+        NONSTOP=true
+        shift ;;
+    --default) 
+        DEFAULT=YES
+        shift ;;
+    *) POSITIONAL+=("$1") 
+        shift ;;
+esac; done
+set -- "${POSITIONAL[@]}" # restore positional parameters
+
+compile() { pdflatex $texfile; }
+convert() { magick -density 500 file.pdf -quality 90 file.$format; }
+open() { $OPEN && gio open "$1" & } 
+
+main() {
+    compile
+    $CONVERT && { convert; open "file.$format"; } \
+    	|| open "file.pdf";
+}
+
+cd ~/.bin/tmp
+
+echo "\documentclass[
+   11pt,
+   border=1pt,
+   varwidth,
+   convert
+]{$latex_format}
+ 
+\usepackage{amsfonts,amsmath,amssymb,amsthm}
+
+\begin{document}
+  \$ $@ \$
+\end{document}" > $texfile
+
+main

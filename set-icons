@@ -1,0 +1,9 @@
+#!/bin/bash
+
+for var in "$@";
+do
+	if [ -d "$var" ] && [ -f "$var/.icon" ] ; then
+		echo "file://$(abspath "$var")/.icon"
+		gio set "$var" metadata::custom-icon "file://$(abspath "$var")/.icon"
+	fi
+done

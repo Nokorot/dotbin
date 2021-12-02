@@ -1,0 +1,8 @@
+#!/bin/sh 
+
+i3 workspace $WS7
+i3 layout tabbed
+
+zathura "$@" & disown
+
+

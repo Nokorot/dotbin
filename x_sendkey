@@ -1,0 +1,29 @@
+#!/bin/bash
+
+send_key() { xdotool key --window $win_id "$@"; }
+
+main() {
+    active="$(xdotool getactivewindow)"
+    [ -z "$win_id" ] && win_id=$active \
+        || xdotool windowactivate "$win_id"
+
+    send_key "$@"
+
+    xdotool windowactivate $active
+}
+
+# Read arguments
+_usage() { echo ""; }
+_invopt() { echo "Incorrect options provided '$1'"; usage; exit 1; }
+
+POSITIONAL=()
+while [[ $# -gt 0 ]]; do case $1 in
+    -w) win_id="$2"; shift ;;
+    -kd)  ;;
+    #
+    -h|-?|--help) _usage ;;
+    -*) _invopt ;;
+    *) POSITIONAL+=("$1") ;;
+esac; shift; done
+set -- "${POSITIONAL[@]}"
+main "$@"

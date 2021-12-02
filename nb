@@ -1,0 +1,76 @@
+#!/bin/bash
+
+[ -z $NOTEBOOK_DIR ] && NOTEBOOK_DIR="~/NOTEBOOK"
+
+
+list(){
+    ls "$NOTEBOOK_DIR" | grep 'md$' | sed 's/.md$//'
+}
+
+dmenu_browse() {
+    echo "$(list | dmenu)" # || return
+    # urxvt -e nvim "$name.md"
+}
+
+open() {
+    echo $1
+
+    $NEWWIN && { urxvt -e nvim -p "$@"; } \
+        || nvim -p "$@";
+}
+
+main() {
+    [ -d $NOTEBOOK_DIR ] || mkdir $NOTEBOOK_DIR
+    cd "$NOTEBOOK_DIR";
+
+    $BROWSE && {
+        note="$(dmenu_browse).md"
+        NEWWIN=true
+    } || {
+        note="$1.md"
+    }
+
+    $PRINT && {
+        [ -f $note ] && cat "$note"
+        return
+    }
+
+    [ -f "$note" ] && open "$note" \
+        || open .
+}
+
+_usage() { 
+    echo "nb - notebook managment script"
+    echo ""
+    # echo " Description "
+    # echo ""
+    echo "options:"
+    echo "  -b, --browse    browse the notebook files with dmenu"
+    echo "  -p, --print     print the content of notebook"
+    echo "  -nw, --newwin   open in new window"
+    echo "  -h, --help      print this message"
+}
+
+_invopt() {
+    echo "Incorrect options provided '$1'"; usage; exit 1
+}
+
+BROWSE=false
+PRINT=false
+NEWWIN=false
+
+# Read arguments
+POSITIONAL=()
+while [[ $# -gt 0 ]]; do
+case $1 in
+    --browse) BROWSE=true ;;
+    --print|-p) PRINT=true ;;
+    --newwin|-nw) NEWWIN=true ;;
+    -h|-?|--help) _usage; exit 0 ;;
+    -*) _invopt ;;
+    *) POSITIONAL+=("$1") ;;
+esac; shift;
+done
+set -- "${POSITIONAL[@]}"
+
+main "$@"

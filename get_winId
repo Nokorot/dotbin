@@ -1,0 +1,14 @@
+#!/bin/sh
+
+id="$(i3-msg -t get_focused | jq '.window')"
+
+_prompt() {
+    notify-send "$id" "$(xwininfo -id $id)"
+    prompt "Copy to Clipboard?" \
+        && printf $id | xclip -selection clipboard
+}
+
+case "$1" in 
+    prompt) _prompt ;;
+    *) printf "0x%x\n" "$id" ;;
+esac

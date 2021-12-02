@@ -1,0 +1,234 @@
+#!/bin/bash
+
+# Potetialy useful for extracting the titles:
+# add something like this to the script
+# pdfgrep -n '' notes.pdf | grep '^[0-9]*:[ \t]*[0-9]\.' | tr -s " " > tmp
+
+
+# TODO: maybe add pdfjoin, which also combines the indexes
+
+# Example of .otl format:
+#<Level> <PageNr> <Title>
+#1	1	1. Basic Notions and Notation
+#1	2	2. Random Variables
+#1	4	3. Expectation–Integrals
+#1	12	4. Lp spaces
+#1	14	5. Convergence of measurable functions
+#1	17	6. Independence of events and independence of random variables
+#1	21	7. Classical Theorems of Probability Theory
+#2	21	7.1. Law of Large Numbers.
+#2	22	7.2. Central Limit Theorem.
+#1	22	8. Conditional Expectation
+#1	24	9. Appendix: Lebesgue measure. Caratheodory extension
+
+DEL='[\t]+'
+OFFSET=0
+
+usage() {
+    echo "$0 [o2i|i2o|ext|add] ..."
+    echo "     o2i  [opts] <file.otl>:   converts a .otl file to a .info file"
+    echo "     i2o  [opts] <file.info>:  converts a .info file to a .otl file"
+    echo "     addi [opts] <file.pdf> <file.info>: Updates the meta data of a pdf."
+    echo "     addo [opts] <file.pdf> <file.otl>:  Updates the index of a pdf."
+    echo "     ext  [opts] <file.pdf>:   extract the meta data from a .pdf file,"
+    echo "     					                ie. a .info file"
+    echo "     join [opts] <file.pdf>... :  joins pdf files,"
+}
+
+o2i_usage(){
+    echo "o2i [opts] >file.otl>"
+    echo "     converts a .otl file to a .info file"
+    echo "OPTIONS:"
+    echo "     -d DEL     use DEL instead of TAB for field delimiter."
+    echo "     -a OFFSET  offset the pagenumber."
+    echo "     -h prints  this message" 
+}
+
+i2o_usage(){
+    echo "i2o  [opts] <file.info>"
+    echo "      converts a .info file to a .otl file."
+    echo "OPTIONS:"
+    echo "     -h prints this message" 
+}
+
+addi_usage() {
+    echo "addi [opts] <file.pdf> <file.info>"
+    echo "     Updates the meta data of the pdf file."
+    echo "OPTIONS:"
+    echo "     -h prints this message" 
+}
+
+addo_usage() {
+    echo "addo [opts] <file.pdf> <file.otl>"
+    echo "      Updates the index of a pdf."
+    echo "OPTIONS:"
+    echo "     -d DEL   use DEL instead of TAB for field delimiter"
+    echo "     -a OFFSET  offset the pagenumber."
+    echo "     -h prints this message" 
+}
+
+join_usage() {
+    echo "join [opts] <file.pdf>..."
+    echo "      joins pdf files."
+    echo "OPTIONS:"
+    echo "     -d DEL   use DEL instead of TAB for field delimiter"
+    echo "     -h prints this message" 
+}
+
+o2i() {
+    OPTIND=0;
+    while getopts ":d:a:h" o; do
+        case "${o}" in
+            d) DEL="${OPTARG}" ;;
+            a) OFFSET="${OPTARG}" ;;
+            h) o2i_usage; exit 0;;
+        esac
+    done
+    shift $((OPTIND-1))
+
+    [ "$#" -lt 1 ] && {
+        echo "ERROR: Not enough arguments!"; o2i_usage; exit 1;
+    }
+    
+	awk -F "$DEL" '{print "BookmarkBegin"} 
+				 {print "BookmarkTitle: " $3}
+                 {print "BookmarkPageNumber: " $2+'$OFFSET'}
+				 {print "BookmarkLevel: " $1}' "$1"
+}
+
+i2o() {
+    OPTIND=0;
+    while getopts ":h" o; do
+        case "${o}" in
+            h) i2o_usage; exit 0;;
+        esac
+    done
+    shift $((OPTIND-1))
+    
+    [ "$#" -lt 1 ] && {
+        echo "ERROR: Not enough arguments!"; i2o_usage; exit 1;
+    }
+        
+	IFS=':'
+	grep Bookmark "$1" | while read line; do
+		# Shuld probably write some c code
+
+		# This does not work when the title contains :
+		#read -ra ADDR <<< "$line"
+		#case ${ADDR[0]} in
+		#		BookmarkBegin) echo "$level$pnr$title" ;;
+		#		BookmarkLevel) level="${ADDR[1]}" ;;
+		#		BookmarkTitle) title="${ADDR[1]}" ;;
+		#		BookmarkPageNumber) pnr="${ADDR[1]}" ;;
+		#		*) 
+		#esac
+
+		# This is a realy slow solution
+		key=$(echo $line | cut -d':' -f1) 
+		value=$( echo $line | sed "s/^.*: //" )
+		case $key in
+				BookmarkBegin) echo "$level$pnr$title" ;;
+				BookmarkLevel) level="$value" ;;
+				BookmarkTitle) title="$value" ;;
+				BookmarkPageNumber) pnr="$value" ;;
+				*) 
+		esac
+	done 
+}
+
+addi(){
+    OPTIND=0;
+    while getopts ":h" o; do
+        case "${o}" in
+            h) addi_usage; exit 0;;
+        esac
+    done
+    shift $((OPTIND-1))
+
+    [ "$#" -lt 2 ] && {
+        echo "ERROR: Not enough arguments!"; addi_usage; exit 1;
+    }
+
+    pdftk "$2" update_info_utf8 "$3" output "$2-new.pdf"
+}
+
+addo(){
+    OUTFILE=""
+    OPTIND=0;
+    while getopts ":d:a:o:h" o; do
+        case "${o}" in
+            d) DEL="${OPTARG}" ;;
+            a) OFFSET="${OPTARG}" ;;
+            o) OUTFILE="${OPTARG}" ;;
+            h) addo_usage; exit 0;;
+        esac
+    done
+    shift $((OPTIND-1))
+
+    [ "$#" -lt 2 ] && {
+        echo "ERROR: Not enough arguments!"; addo_usage; exit 1;
+    }
+
+    [ -z "$OUTFILE" ] && OUTFILE="$1-new.pdf"
+
+    echo $@
+
+    tempfile="$(mktemp)"
+    o2i "$2" > "$tempfile";
+    cat $tempfile
+    
+    pdftk "$1" update_info_utf8 "$tempfile" output "$OUTFILE"
+    rm $tempfile
+}
+
+
+join() {
+    OPTIND=0;
+    while getopts ":h" o; do
+        case "${o}" in
+            h) join_usage; exit 0;;
+        esac
+    done
+    shift $((OPTIND-1))
+    
+    [ "$#" -lt 1 ] && {
+        echo "ERROR: Not enough arguments!"; join_usage; exit 1;
+    }
+
+	echo "Combining $@"
+	echo "Prosessing metadata"
+	for file in "$@"; do 
+		pdftk $file dump_data_utf8 > /tmp/$file.info;
+	done
+	python -c '
+import sys; from pdf_dump import *
+off=0; 
+for fn in sys.argv[1:]:
+    root=read_info("/tmp/%s.info" % fn); info2otl(root,pgn_off=off)
+    off+=root["NumberOfPages"]
+	' "$@" > /tmp/pdfjoin.otl
+	otl2info /tmp/pdfjoin.otl > pdfjoin.info
+	echo "Combining pdfs"
+	pdfjoin --outfile /tmp/pdfjoin.pdf -- "$@"
+	echo "Adding metadata"
+	pdftk /tmp/pdfjoin.pdf update_info_utf8 pdfjoin.info \
+				output pdfjoin.pdf
+
+	echo "Removing tmp-files"
+	for file in "$@"; do rm /tmp/$file.info; done
+	rm /tmp/pdfjoin.otl; rm /tmp/pdfjoin.pdf
+}
+
+main() {
+    case $1 in
+    		o2i) o2i "${@:2}" ;;
+    		i2o) i2o "${@:2}" ;;
+    		ext) pdftk "$2" dump_data_utf8  ;;
+    		addi) addi "${@:2}" ;;
+            addo) addo "${@:2}" ;;
+    		join) join "${@:2}" ;;
+            -h|-help)  usage ;;
+            *) echo "ERROR: Unknown keyword '$1'."; usage ;;
+    esac
+}
+main "$@"

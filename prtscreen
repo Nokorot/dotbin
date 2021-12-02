@@ -1,0 +1,40 @@
+#!/bin/bash
+
+
+options="-quality 98"
+savepath="$HOME/LMedia/Pictures/"
+preview="feh"
+
+tmpimg=$(mktemp).png
+savefile() {
+    echo "$savepath"pic-"$(date '+%y%m%d-%H%M-%S').png"
+}
+
+echo $1
+case $1 in 
+    root) import -window root $options "$tmpimg" ;;
+    # TODO: area)
+    win) import $options "$tmpimg" ;;
+    curwin) import -window "$(get_winId)" "$tmpimg" ;;
+esac
+
+while true; do
+    res="$(printf "quit\nsave\nsave as\npreview\ndragon" | dmenu -p "ScreenShot: ")"
+    case "$res" in
+        quit | "") break ;;
+        save) cp "$tmpimg" "$(savefile)" ;;
+        saveas) fp="$(echo $savepath | dmenu)" && cp "$tmpimg" "$fp" ;;
+        dragon) dragon-drag-and-drop --and-exit "$tmpimg" ;;
+        preview) 
+            [ -z "$child" ] && {
+                feh -. "$tmpimg" &
+                child="${!}";
+            } ;;
+        # copy) 
+    esac
+done
+
+# kill "$child"
+
+rm "$tmpimg"
+

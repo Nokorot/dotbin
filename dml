@@ -1,0 +1,45 @@
+#!/bin/sh
+
+# TODO bmdir="$HOME/.config/dmenu_run.wlist.d"
+# brfile="$HOME/.config/gg-bookmarks"
+
+bmfile="$HOME/.config/dml/main"
+
+run() {
+    [ -z $1 ] && exit
+
+    l=$(_dml_cmp $bmfile | grep "^$1$\|^$1 ")
+    [ -z "$l" ] && notify-send "keyword '$1' was not found"
+
+    c=$(echo $l | cut -d' ' -f2- )
+
+    [ -z "$c" ] && c=$1
+    echo $c
+
+    echo $c | ${SHELL:-"/bin/sh"} &
+}
+
+dmenu_search() {
+    _dml_cmp $bmfile | \
+        cut -d' ' -f1 | dmenu -i -p "$prompt"
+}
+
+usage() {
+    echo "Usage: $0 [-c <file>] <choose>\\n   -c: dml-file, default '$bmfile' \\n" 1>&2; exit 1;}
+
+while getopts "hc:p:" o; do case "${o}" in
+	c) bmfile=$OPTARG ;;
+    p) prompt=$OPTARG ;;
+	*) usage && exit ;;
+esac done
+
+shift $((OPTIND-1))
+
+if [ -z $1 ]; then
+    run $(dmenu_search)
+else
+    run "$1"
+fi
+
+
+# < ~/.config/dmenu_run.wlist dmenu "$@" | ${SHELL:-"/bin/sh"} &

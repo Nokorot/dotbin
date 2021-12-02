@@ -1,0 +1,4 @@
+#!/bin/sh
+
+pdfseparate "$1" -f "$2" -l "$2" out.pdf
+

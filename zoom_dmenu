@@ -1,0 +1,62 @@
+#!/bin/sh
+
+bmfile="$HOME/.config/zoom_links.list"
+
+run() {
+    [ -z $1 ] && exit
+
+    l=$(_dml_cmp $bmfile | grep "^$1$\|^$1 ")
+    [ -z "$l" ] && notify-send "keyword '$1' was not found"
+
+    c=$(echo $l | cut -d' ' -f2- )
+
+    [ -z "$c" ] && c=$1
+    echo $c
+
+    zoom "$c"
+}
+
+store() {
+    name="$(dmenu_name)"
+    [ -z "$name" ] && { notify-send "Not stored!"; return; }
+    printf "$name  $1\n" >> $bmfile
+}
+
+dmenu_search() {
+    _dml_cmp $bmfile | \
+        cut -d' ' -f1 | dmenu -i -p "$prompt"
+}
+
+dmenu_name() {
+    _dml_cmp $bmfile | \
+        cut -d' ' -f1 | dmenu -i -p "Store Link With Tag: "
+}
+
+
+## TODO: Write a proper usage message
+usage() {
+    echo "Usage: $0 [-c <file>] <choose>\\n   -c: dml-file, default '$bmfile' \\n" 1>&2; exit 1;}
+
+
+
+main () {
+    STORE=""
+    while getopts "hc:p:s" o; do case "${o}" in
+    	c) bmfile=$OPTARG ;;
+        p) prompt=$OPTARG ;;
+        s) STORE="True" ;;
+    	*) usage && exit ;;
+    esac done
+    shift $((OPTIND-1))
+
+    if [ -z "$STORE" ]; then 
+        [ -z $1 ] && run "$(dmenu_search)" \
+            || run "$1";
+    else 
+        [ -z $1 ] && store "$(xclip -o -selection clipboard)" \
+            || store "$1";
+    fi   
+}
+
+main $@
+
