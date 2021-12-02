@@ -1,0 +1,25 @@
+#!/bin/sh
+
+send_cmd() {
+    echo "{\"command\": $1}" | socat - "/tmp/mpvsocket"
+}
+
+# TODO This is bad!!
+ytpl_restart() { 
+    pkill ytpl; sleep .5
+    ytpl "$@" & 
+    disown
+}
+
+case $1 in
+    toggle) send_cmd '["cycle", "pause"]' ;;
+    pause)  send_cmd '["set_property", "pause", true]' ;;
+    play)   send_cmd '["set_property", "pause", false]' ;;
+    next)   send_cmd '["quit"]' ;;
+
+    # Seek seconds
+    seek)   send_cmd '["seek", '"$2"']' ;; 
+
+    restart) ytpl_restart "$@" ;;
+esac
+

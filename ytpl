@@ -1,0 +1,96 @@
+#!/bin/sh
+
+## TODO: Rewrite this in C, to implemet a ipc protocol
+# When doing so, previos might also be nice
+
+current_ipc="/tmp/mpvsocket"
+
+PAUSE=false
+LOOP=false
+SHUFFEL=false
+
+_usage() { 
+    echo "ytpl - background YouTube music player"
+    echo ""
+    echo "Usage: ytpl [options] <file_url.list ...>"
+    echo ""
+    echo "This scripts expexts one or more files containging a list urls to youtube videos."
+    echo "The script then uses youtube-dl and mpv to stream the audio part of the videos."
+    echo "The power of this script is that is starts buffering the next video imideatly after starting to play the current one. Thus avoiding a huge pause when switching to the next video."
+    echo "Depending on the --shuffel option the combined list of urls is shuffeled."
+    echo ""
+    echo "options: "
+    echo "  -h, --help      prints this message"
+    echo "  -s, --shuffel   shuffel the playlist"
+    echo "  -p, --pause     start in a paused mode"
+    echo "  -l, --loop      replay playlist when done"
+}
+
+play() {
+    old_pid=""
+    mkdir -p "/tmp/mpv"
+    while read i; do
+        echo "Reading \"$i\""
+        url="$(youtube-dl -x -g "$i" 2> /dev/null)"  || continue
+
+        new_ipc=$(mktemp "/tmp/mpv/mpvsocket_XXXXX")
+        mpv "$url" --pause --input-ipc-server="$new_ipc" &
+        new_pid=$!
+    
+        sleep 1
+        [ -z "$old_pid" ] || {
+            while kill -0 "$old_pid" 2> /dev/null; do
+                sleep 0.5
+            done
+            rm "$old_ipc"
+        }
+        
+        # Start Paused mpv
+        ( $PAUSE && [ -z "$old_pid" ] ) || {
+            echo '{"command": ["cycle", "pause"]}' | socat - "$new_ipc"
+        }
+        ln -fs "$new_ipc" "$current_ipc"
+
+        old_pid=$new_pid
+        old_ipc="$new_ipc"
+    done
+
+    # Wait until the last song is done
+    while kill -0 "$new_pid" 2> /dev/null; do
+        sleep 0.5
+    done
+}
+
+main() {
+    [ -z "$1" ] && { _usage; exit 1; }
+ 
+    ## TODO: When looping, the next 'song' is not loaded at the end of the list. 
+    ## Not a big problem when the list is long.
+    while true; do
+        cat "$@" | 
+            ( $SHUFFEL && shuf || cat ) |
+            play
+        $LOOP || break;
+    done
+}
+
+_invopt() {
+    echo "Incorrect options provided '$1'"; usage; exit 1
+}
+
+
+# Read arguments
+POSITIONAL=()
+while [[ $# -gt 0 ]]; do
+case $1 in
+    -h|--help) _usage; exit 1 ;;
+    -s|--shuffel) SHUFFEL=true ;;
+    -p|--pause)   PAUSE=true ;;
+    -l|--loop)    LOOP=true ;;
+    -*) _invopt ;;
+    *) POSITIONAL+=("$1") ;;
+esac; shift;
+done
+set -- "${POSITIONAL[@]}"
+
+main "$@"
