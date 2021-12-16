@@ -1,0 +1,27 @@
+#!/bin/sh
+# By Luke Smith: https://github.com/lukesmithxyz/voidrice
+
+# Give dmenu list of all unicode characters to copy.
+# Shows the selected character in dunst if running.
+
+# Must have xclip installed to even show menu.
+# xclip -h > /dev/null || exit
+
+unicode_file="$HOME/.config/unicode/_main"
+
+echo "$1"
+# < ".config/emoji" dmenu -i -l 20
+
+# TODO: Maybe divide the search into stages and change
+#           the font depending on which category/file is opended
+chosen=$(_dml_cmp "$unicode_file" | dmenu -i -l 20 -fn "sans-serif" | sed "s/ .*//")
+
+[ -z "$chosen" ] && exit
+
+case "$1" in 
+    insert) 
+        xdotool type --widnow "$id" "$chosen" ;;
+    *) 
+        echo "$chosen" | tr -d '\n' | xclip -selection clipboard
+	    notify-send "'$chosen' copied to clipboard." & ;;
+esac

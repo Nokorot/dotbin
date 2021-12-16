@@ -1,0 +1,54 @@
+#!/bin/sh
+# A general audio interface for LARBS.
+
+mpd_port=6000
+
+[ -z "$2" ] && num="2" || num="$2"
+
+# TODO: If state == ytpl
+
+case "$1" in
+	u*) pulsemixer --change-volume +"$num" ;;
+	d*) pulsemixer --change-volume -"$num" ;;
+	m*) pulsemixer --toggle-mute ;;
+	truemute) pulsemixer --mute ;;
+	play) ytplc play ;;
+	n*)   ytplc next ;;
+	# Not implemented: prev) ytplc prev ;;
+	t*)   ytplc toggle ;;
+	p*)   ytplc pause ;;
+	s*)   ytplc seek +"$num" ;;
+	# play) mpc -p $mpd_port play ;;
+	# n*)   mpc -p $mpd_port next ;;
+	# prev) mpc -p $mpd_port prev ;;
+	# t*)   mpc -p $mpd_port toggle ;;
+	# p*)   mpc -p $mpd_port pause ; pauseallmpv ;;
+	# f*)   mpc -p $mpd_port seek +"$num" ;;
+	# b*)   mpc -p $mpd_port seek -"$num" ;;
+	# r*)   mpc -p $mpd_port seek 0% ;;
+	*) cat << EOF
+lmc: cli music interface for mpd and pulse for those with divine intellect too
+grand to remember the mpc/pamixer commands.
+
+Allowed options:
+  up NUM	Increase volume (2 secs default)
+  down NUM	Decrease volume (2 secs default)
+  mute		Toggle mute
+  truemute	Mute
+  next		Next track
+  prev		Previous track
+  toggle	Toggle pause
+  truepause	Pause
+  foward NUM	Seek foward in song (2 secs default)
+  back NUM	Seek back in song (2 secs default)
+  restart	Restart current song
+  all else	Print this message
+
+All of these commands, except for \`truemute\`, \`prev\` and \`play\` can be truncated,
+i.e. \`lmc r\` for \`lmc restart\`.
+EOF
+esac
+
+
+pkill -RTMIN+10 i3blocks
+pkill -RTMIN+11 i3blocks

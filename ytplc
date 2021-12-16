@@ -1,8 +1,11 @@
 #!/bin/sh
 
+mpv_ipc="/tmp/mpvsocket"
+
 send_cmd() {
-    echo "{\"command\": $1}" | socat - "/tmp/mpvsocket"
+    echo "{\"command\": $1}" | socat - "$mpv_ipc" 
 }
+
 
 # TODO This is bad!!
 ytpl_restart() { 
@@ -11,15 +14,30 @@ ytpl_restart() {
     disown
 }
 
-case $1 in
-    toggle) send_cmd '["cycle", "pause"]' ;;
-    pause)  send_cmd '["set_property", "pause", true]' ;;
-    play)   send_cmd '["set_property", "pause", false]' ;;
-    next)   send_cmd '["quit"]' ;;
+ftime() {
+    awk '{printf("%02d:%02d:%02d\n", int($1 / 3600) % 60, 
+                                     int($1 / 60) % 60, 
+                                     int($1) % 60)  }'
+}
 
-    # Seek seconds
-    seek)   send_cmd '["seek", '"$2"']' ;; 
+main() {
+    case $1 in
+        toggle) send_cmd '["cycle", "pause"]' ;;
+        pause)  send_cmd '["set_property", "pause", true]' ;;
+        play)   send_cmd '["set_property", "pause", false]' ;;
+        next)   send_cmd '["quit"]' ;;
+    
+        # Seek seconds
+        seek)   send_cmd '["seek", '"$2"']' ;; 
+    
+        playtime) send_cmd  '["get_property", "time-pos"]' | jq .data | ftime ;; 
+        duration) send_cmd  '["get_property", "duration"]' | jq .data | ftime ;; 
+    
+        time) echo "$(main playtime) / $(main duration)" ;;
+    
+        restart) ytpl_restart "$@" ;;
+    esac
+}
 
-    restart) ytpl_restart "$@" ;;
-esac
+main "$@"
 

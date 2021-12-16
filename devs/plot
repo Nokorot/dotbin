@@ -1,4 +1,4 @@
-#!/usr/bin/python3.7
+#!/usr/bin/python
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -62,7 +62,7 @@ def  plot3d(expr, interval):
 # TODO: plot to png
 def main(argv):
     interval = [-1,1]
-    threeD=False
+    threeD=True
     
     try:
         opts, args = getopt.getopt(argv, "hi:", ["interval"]);

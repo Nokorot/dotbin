@@ -1,0 +1,14 @@
+#!/bin/sh
+# Sets the background. If given an argument, will set file as background.
+
+while getopts "hr" o; do case "${o}" in
+	r) randomize="True" ;;
+	*) printf "Options:\\n   -r: Change to a bg to a random image in ~/Pictures/Wallpaperps.\\n" && exit ;;
+esac done
+
+# TODO: use the --no-fehbg  feh option in stead of copying the image file
+
+[ ! -z $randomize ] && feh --randomize --bg-fill ~/Pictures/Wallpapers/* && exit 0;
+
+[ ! -z "$1" ] && cp "$1" ~/.config/wall.png && notify-send -i "$HOME/.config/wall.png" "Wallpaper changed." 
+feh --bg-fill ~/.config/wall.png
