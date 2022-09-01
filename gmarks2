@@ -21,6 +21,11 @@
 #1	22	8. Conditional Expectation
 #1	24	9. Appendix: Lebesgue measure. Caratheodory extension
 
+
+pages() { pdfinfo "$1" | grep Pages | sed 's/^[^:]*:\s*//'; }
+
+# count=0; for i in {1..7}; do gmarks2 i2o -a $count $i.info; count="$(( count + $(pages "$i.pdf") ))"; done
+
 DEL='[\t]+'
 OFFSET=0
 
@@ -97,43 +102,39 @@ o2i() {
 }
 
 i2o() {
-    OPTIND=0;
-    while getopts ":h" o; do
-        case "${o}" in
-            h) i2o_usage; exit 0;;
-        esac
-    done
-    shift $((OPTIND-1))
-    
-    [ "$#" -lt 1 ] && {
-        echo "ERROR: Not enough arguments!"; i2o_usage; exit 1;
+  OPTIND=0;
+  while getopts ":a:h" o; do
+    case "${o}" in
+      h) i2o_usage; exit 0;;
+      a) OFFSET=${OPTARG} ;;
+    esac
+  done
+  shift $((OPTIND-1))
+  
+  [ "$#" -lt 1 ] && {
+    echo "ERROR: Not enough arguments!"; i2o_usage; exit 1;
+  }
+
+  IFS=':'
+  grep Bookmark "$1" | {
+    # level=0; pnr=0; title=""
+    prt() {
+        [ -z "$level" ] || printf "$level\t$(( $pnr + $OFFSET ))\t$title\n"
     }
-        
-	IFS=':'
-	grep Bookmark "$1" | while read line; do
-		# Shuld probably write some c code
 
-		# This does not work when the title contains :
-		#read -ra ADDR <<< "$line"
-		#case ${ADDR[0]} in
-		#		BookmarkBegin) echo "$level$pnr$title" ;;
-		#		BookmarkLevel) level="${ADDR[1]}" ;;
-		#		BookmarkTitle) title="${ADDR[1]}" ;;
-		#		BookmarkPageNumber) pnr="${ADDR[1]}" ;;
-		#		*) 
-		#esac
+    while read line; do
+      key="$(echo "$line" | cut -d':' -f1)"
+      value="$(echo "$line" | sed "s/^[^:]*: *//" )"
 
-		# This is a realy slow solution
-		key=$(echo $line | cut -d':' -f1) 
-		value=$( echo $line | sed "s/^.*: //" )
-		case $key in
-				BookmarkBegin) echo "$level$pnr$title" ;;
-				BookmarkLevel) level="$value" ;;
-				BookmarkTitle) title="$value" ;;
-				BookmarkPageNumber) pnr="$value" ;;
-				*) 
-		esac
-	done 
+      case $key in
+      	BookmarkBegin)       prt             ;;
+      	BookmarkLevel)       level="$value"  ;;
+      	BookmarkTitle)       title="$value"  ;;
+      	BookmarkPageNumber)  pnr="$value"    ;;
+      esac
+    done 
+    prt
+  }
 }
 
 addi(){
@@ -200,6 +201,7 @@ join() {
 	for file in "$@"; do 
 		pdftk $file dump_data_utf8 > /tmp/$file.info;
 	done
+    # TODO: Use jq
 	python -c '
 import sys; from pdf_dump import *
 off=0; 
@@ -207,7 +209,7 @@ for fn in sys.argv[1:]:
     root=read_info("/tmp/%s.info" % fn); info2otl(root,pgn_off=off)
     off+=root["NumberOfPages"]
 	' "$@" > /tmp/pdfjoin.otl
-	otl2info /tmp/pdfjoin.otl > pdfjoin.info
+	o2i /tmp/pdfjoin.otl > pdfjoin.info
 	echo "Combining pdfs"
 	pdfjoin --outfile /tmp/pdfjoin.pdf -- "$@"
 	echo "Adding metadata"

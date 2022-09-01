@@ -4,17 +4,41 @@ import sys, os
 import tempfile
 import getopt
 
+import random
 
-mv_args = ""
+mv_args = ['-i']
+
+SKIP_CONFERM=False
+
+
+def random_name():
+    return ''.join(random.choices("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ", k=8))
 
 def generate_script(old_filenames, new_filenames, cmdpath):
     mm = max(map(len, old_filenames))
+    
+    temp_filenames=[]
+
+    ## TODO: Could optimize the number of moves, but it's probalby not at all nessesary
+
     def rename_cmd(old, new):
         align = " "*(mm - len(old))
-        return f"mv {mv_args} \"{old}\" {align} \"{new}\"\n"
+        return f"mv {''.join(mv_args)} \"{old}\" {align} \"{new}\"\n"
+  
+    script_lines = []
+    
+    for c, (old, new) in enumerate(zip(old_filenames, new_filenames)):
+        if old == new: continue
+        if new in old_filenames[c:]:
+            tmpf = old + '.' + random_name()
+            script_lines.append(rename_cmd(old, tmpf))
+            temp_filenames.append( (tmpf, new) )
+        else:
+            script_lines.append(rename_cmd(old, new))
 
-    script_lines = [rename_cmd(old, new) 
-            for (old, new) in zip(old_filenames, new_filenames) if old != new]
+    for (temp, new) in temp_filenames:
+        script_lines.append(rename_cmd(temp, new))
+        
 
     script_content = "".join(script_lines)
     cmdfile = open(cmdpath, "wb")
@@ -60,8 +84,14 @@ def main(argv, flags):
 
     generate_script(filenames, new_filenames, cmdpath)
 
+    def execute():
+        os.system('/bin/sh "%s"' % cmdpath)
+
+    if SKIP_CONFERM:
+        execute()
+    
     ## User input loop.
-    while True:
+    while not SKIP_CONFERM:
         print("Generated script:")
         os.system('/bin/cat "%s"' % cmdfile.name)
 
@@ -77,7 +107,7 @@ def main(argv, flags):
             new_filenames = read_filenames(listpath)
             generate_script(filenames, new_filenames, cmdpath)
         elif e.lower()[0] == "y":
-            os.system('/bin/sh "%s"' % cmdpath)
+            execute()
             break
         elif e.lower()[0] == "n" or e.lower()[0] == "q":
             break
@@ -96,11 +126,14 @@ if __name__ == '__main__':
 
     ## TODO: Add ´mv´ args as opt
     try:
-        opts, argv = getopt.getopt(sys.argv[1:], "hn", ["enumerate"]);
+        opts, argv = getopt.getopt(sys.argv[1:], "hny", ["enumerate"]);
     except getopt.GetoptError:
         helpmessage()
     for opt, arg in opts:
-        if opt == '-h': helpmessage();
+        if opt == '-h': 
+            helpmessage();
+        elif opt == '-y': 
+            SKIP_CONFERM=True
         elif opt in ('-n', '--enumerate'):
             flags.append('enumerate')
 

@@ -1,0 +1,3 @@
+#!/bin/sh
+
+nn -browse -notes-dir "$1" -dmargs "-l 20 -pv >(PVDIR='$1' ~/.bin/preview_mupdf.sh) " 

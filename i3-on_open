@@ -1,0 +1,60 @@
+#!/bin/sh
+
+
+tmpf=$(mktemp)
+_exit() {
+    rm "$tmpf"
+    exit $1
+}
+
+# Options
+PRINT=false
+
+prosess() {
+    echo "$dat" > $tmpf
+
+    [ "$(< $tmpf jq .change)" == "\"new\"" ] || return
+
+    instance="$(< $tmpf jq .container.window_properties.instance)"
+    ([ -z "$NAME" ] || [ "$instance" == "\"$NAME\"" ]) \
+        || return
+    
+    $PRINT && {
+        < $tmpf jq
+        _exit 0
+    }
+
+    con_id=$(< $tmpf jq .container.id)
+
+    CMDS=()
+    for arg in "${POSITIONAL[@]}"; do
+        case $arg in
+            _*) $(<<< $arg sed 's/^_//') ;;
+            *) CMDS+=("[con_id=$con_id] $arg;") ;;
+        esac;  
+    done
+    i3-msg "${CMDS[@]}"
+
+    _exit 0
+}
+
+main() {
+    i3-msg -t subscribe -m '[ "window" ]' \
+        | while read dat; do prosess "$dat"; done
+        
+    # | jq -c 'select(.change == "new")' \
+}
+ 
+
+# Read arguments
+POSITIONAL=()
+while [[ $# -gt 0 ]]; do
+case $1 in
+    --name) NAME="$2"; shift ;;
+    --prt) PRINT=true ;;
+    -h|-?|--help) _usage; exit 0 ;;
+    -*) echo "Invalid option '$1'" > /dev/stderr; exit 1 ;;
+    *) POSITIONAL+=("$1") ;;
+esac; shift;
+done
+main "${POSITIONAL[@]}"

@@ -2,42 +2,92 @@
 
 mpv_ipc="/tmp/mpvsocket"
 
-send_cmd() {
-    echo "{\"command\": $1}" | socat - "$mpv_ipc" 
+_usage() { 
+  echo "Usage: $0 [options] <action>"
+  echo "client to controle 'ytpl' demon"
+  echo ""
+  echo "actions:"
+  echo "  toggle: toggle the play state"
+  echo "  pause"
+  echo "  play"
+  echo "  next: play next song"
+  echo "  seek <amount>: advance the song"
+  echo "  playtime: print the current play time"
+  echo "  duration: print the durration of the corrent song"
+  echo "  time: print playtime / duration"
+  echo "  retart: restart ytpl"
+  echo ""
+  echo "options:"
+  echo "  -b, --dmenu     use dmenu to sellect action"
+  echo "  -h, --help      print this message"
 }
 
+
+options="toggle,pause,play,next,seek"
+
+main() {
+  $DMENU && action="$(printf "$options" | tr , '\n' | dmenu )";
+  $DMENU || action="$1";
+  [ -z "$action" ] && exit 0
+
+  case $action in
+    toggle) send_cmd '["cycle", "pause"]' ;;
+    pause)  send_cmd '["set_property", "pause", true]' ;;
+    play)   send_cmd '["set_property", "pause", false]' ;;
+    next)   send_cmd '["quit"]' ;;
+  
+    # Seek seconds
+    seek) seek "$2" ;;
+
+    playtime) send_cmd  '["get_property", "time-pos"]' | jq .data | ftime ;; 
+    duration) send_cmd  '["get_property", "duration"]' | jq .data | ftime ;; 
+  
+    time) echo "$(main playtime) / $(main duration)" ;;
+  
+    restart) ytpl_restart "$@" ;;
+  esac
+}
+
+send_cmd() {
+  echo "{\"command\": $1}" | socat - "$mpv_ipc" 
+}
+
+seek() {
+  $DMENU && amount="$(echo "5" | dmenu -p "Amount: ")";
+  $DMENU || amount="$1";
+  [ -z "$amount" ] && exit 0
+
+  send_cmd '["seek", '"$amount"']';
+}
 
 # TODO This is bad!!
 ytpl_restart() { 
-    pkill ytpl; sleep .5
-    ytpl "$@" & 
-    disown
+  pkill ytpl; sleep .5
+  ytpl "$@" & 
+  disown
 }
 
 ftime() {
-    awk '{printf("%02d:%02d:%02d\n", int($1 / 3600) % 60, 
-                                     int($1 / 60) % 60, 
-                                     int($1) % 60)  }'
+  awk '{printf("%02d:%02d:%02d\n", int($1 / 3600) % 60, 
+                                   int($1 / 60) % 60, 
+                                   int($1) % 60)  }'
 }
 
-main() {
-    case $1 in
-        toggle) send_cmd '["cycle", "pause"]' ;;
-        pause)  send_cmd '["set_property", "pause", true]' ;;
-        play)   send_cmd '["set_property", "pause", false]' ;;
-        next)   send_cmd '["quit"]' ;;
-    
-        # Seek seconds
-        seek)   send_cmd '["seek", '"$2"']' ;; 
-    
-        playtime) send_cmd  '["get_property", "time-pos"]' | jq .data | ftime ;; 
-        duration) send_cmd  '["get_property", "duration"]' | jq .data | ftime ;; 
-    
-        time) echo "$(main playtime) / $(main duration)" ;;
-    
-        restart) ytpl_restart "$@" ;;
-    esac
-}
+
+
+DMENU=false
+
+# Read arguments
+POSITIONAL=()
+while [[ $# -gt 0 ]]; do
+case $1 in
+  --dmenu) DMENU=true ;;
+  -h|-?|--help) _usage; exit 0 ;;
+  -*) echo "Incorrect options provided '$1'"; exit 1;;
+  *) POSITIONAL+=("$1") ;;
+esac; shift;
+done
+set -- "${POSITIONAL[@]}"
 
 main "$@"
 

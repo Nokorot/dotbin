@@ -1,0 +1,5 @@
+#!/bin/sh
+
+xprop -f _NET_WM_WINDOW_CMASK 32a -set _NET_WM_WINDOW_CMASK 0x00ff00ff #  -id $_wid
+
+

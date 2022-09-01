@@ -1,0 +1,55 @@
+#!/bin/sh
+ 
+source "$HOME/.bin/_trash.sh"
+
+# Args:
+ALL=false
+ISEMPTY=false
+
+
+_tmenu() { tmenu -ms "$@"; }
+
+[ -d "$TrashDir/files" ] || {
+    printf "%s\n" "The Trash Folder does not exits!"
+    exit 0
+}
+
+[ -z "$(ls $TrashDir/files)" ] && {
+    printf "%s\n" "The Trash Folder is empty!"
+    exit 0
+}
+
+main() {
+  $ISEMPTY && { exit 2; }
+
+
+  $ALL && { empty; exit 0; }
+
+  _tmenu <(listFiles) >( \
+    fileFromLine | while read i; do delPerm "$i"; done; )
+} 
+
+_usage() { 
+  echo "$0 [options]"
+  echo "Use 'tmenu' to select trashed files to permanently delete"
+  echo ""
+  echo "options:"
+  echo "  -?, --is-empty  Chech if empty, exits with 0 is empty and 2 if not"
+  echo "      --all       Permanently delete all trashed files"
+  echo "  -h, --help      print this message"
+} 
+
+# Read arguments
+POSITIONAL=()
+while [[ $# -gt 0 ]]; do
+case $1 in
+    # --print|-p) PRINT=true ;;
+    -?|--is-empty) ISEMPTY=true ;;
+    --all) ALL=true ;;
+    -h|--help) _usage; exit 0 ;;
+    -*) echo "Invalid option '$1'" > /dev/stderr; exit 1 ;;
+    *) POSITIONAL+=("$1") ;;
+esac; shift;
+done
+
+main "${POSITIONAL[@]}"

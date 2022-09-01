@@ -1,0 +1,125 @@
+#!/bin/sh
+
+# TODO:
+# - Deficated <insert>
+# - Make sure there is exactly one instance of <CSR> in the output
+# - Indentation. Could generalize to also do comments or -- or ...
+# - General snipits. ie. for all fletypes
+# - Make new snipit
+# - Run a script in stead of printing the file
+
+# - More advanced syntax. Somehow, generate tex-envs, based on a template and a name
+
+# Partly done:
+# - Embed content, maybe at the cursor, for selection mode in vim
+
+# Done:
+# - Choise argument, allowing for spsific macros
+
+
+####
+
+[ -z "$TEMPLATES" ] && TEMPLATES="$HOME/Templates"
+SNIPITS_FOLDER="$TEMPLATES/snipits"
+SNIPINDEX="$TEMPLATES/snipits/_index.json"
+
+# Flags:
+EMBEDED_CONTENT=false
+
+push() {
+  file="$SNIPITS_FOLDER/$(echo "$1" | jq .File | xargs echo)"
+
+  tmpf=$(mktemp)
+
+  # FIX: This is a hack: There is going to be problems if the key or value has characters like / \ , ...
+  sed_ex="$(echo "$1" \
+      | jq '.Vars | to_entries | .[] | [ "<+" + .key + "+>", .value] 
+        | join("/") | "s/" + . + "/g"' | xargs printf "%s;")"
+
+  [ -f "$file" ] && {
+    if $EMBEDED_CONTENT; then
+      # TODO: The insert script is completly a scetch
+      _insert "$file" \
+          <(< /dev/stdin awk 'NR>1{print PREV} {PREV=$0} END{printf("%s",$0)}')
+    else
+      cat "$file";
+    fi
+  } | sed "$sed_ex" > $tmpf 
+
+  [ -z "$(cat $tmpf)" ] && echo "<CSR>" > $tmpf
+
+  ## Note: This one should prefrably be 0, it is 1, because I don't want to write vim script
+  if [ $INDENT_MULTIPLIER -gt 0 ]; then
+    tst() { printf "$1"'%.s' $(eval "echo {1.."$(($2))"}"); }
+    indent=$(tst "$INDENT" "$INDENT_MULTIPLIER")
+    sed -i "s/^/$indent/" $tmpf
+  fi
+
+  cat $tmpf
+  rm $tmpf
+}
+
+dmenu_browse() {
+  dmenu -jd 0 -j <( node_index ) \
+        -fn 'Ubuntu Mono:bold:pixelsize=24' \
+        -w "$(get_winId)" 
+
+  # ls "$SNIP_FOLDER" \
+  #     | dmenu -w "$(get_winId)" -fn 'Ubuntu Mono:bold:pixelsize=24'
+}
+
+node_index() {
+    < "$SNIPINDEX" jq "[ ._common, .$NODE | .Snipits ] | add"
+}
+
+main() {
+  [ -z "$1" ] && {
+    echo "ERROR: not enough arguments provided!" > /dev/stderr
+  }
+
+
+  NODE="$1"
+  SNIP_FOLDER="$SNIPITS_FOLDER/$1"
+
+  if [ -z "$2" ]; then
+    choise="$(dmenu_browse)";
+  else 
+    choise="$(node_index | jq ".$2" )";
+  fi
+    
+  # Note: I'm lasy, this printing is because I'm expecting something in vim
+  [ -z "$choise" ] && { echo "<CSR>"; exit 0; }
+  push "$choise" > /dev/stdout
+}
+
+_usage() {
+  echo "Usage: $0 <folder> [choise]"
+  echo ""
+  echo "Options:"
+  echo "    -h, --help  print this message"
+  echo "    -e, --embed <content> embed content folloing the cursor position"
+}
+
+_invopt() {
+  echo "Incorrect options provided '$1'"
+  echo "Try '$0 --help' for more information"
+}
+
+INDENT=" "
+INDENT_MULTIPLIER=0
+
+# Read arguments
+POSITIONAL=()
+while [[ $# -gt 0 ]]; do
+case $1 in
+  -h|--help) _usage; exit 0 ;;
+  -e|--embed) EMBEDED_CONTENT=true;;
+  -i|--indent) INDENT="$2"; shift;;
+  -im|--indnt-multiplier) INDENT_MULTIPLIER="$2"; shift;;
+  -*) _invopt 1&>2; exit 1 ;;
+  *) POSITIONAL+=("$1") ;;
+esac; shift;
+done
+set -- "${POSITIONAL[@]}"
+
+main "$@"

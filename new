@@ -1,15 +1,32 @@
 #!/bin/sh
 
-templates="$HOME/Templates"
+use_dmenu() {
+  _dml_cmp $TEMPLATES/TEMPLATES.dml | cut -d' ' -f1 \
+      | dmenu
+}
+
+get_file() {
+  _dml_cmp $TEMPLATES/TEMPLATES.dml | grep "^$1\b" \
+    | cut -d' ' -f2- \
+    | sed "s/^\s*//"
+}
+
 
 template=$1
-([ -z "$1" ] || [ "$1" = "-" ]) && template=$( ls $templates | dmenu )
+([ -z "$1" ] || [ "$1" = "-" ]) && template=$( use_dmenu )
 [ -z "$template" ] && exit 
 
-dest=$2
+echo $template
+
+# dest=
+dest="$( printf "%s\n" "$2" \
+    | _insert -r -key '%date' -srcin <(date '+%y%m%d') )"
+
+echo $dest
+exit 
+
 ([ -z "$2" ] || [ "$2" = "-" ]) && dest=$( echo "$template" | dmenu )
 [ -z "$dest" ] && exit 
 
-
-cp -ir "$templates/$template" "$dest"
+cp -ir "$TEMPLATES/$(get_file "$template")" "$dest"
 

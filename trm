@@ -1,0 +1,36 @@
+#!/bin/sh
+
+# Args:
+PERMANENT=false
+
+main() {
+    outf=$(mktemp)
+    tmenu -ms <( ls "$@" ) $outf
+    
+    cat $outf | while read line; do
+        if $PERMANENT; then  
+            rm "$line"
+        else 
+            gio trash "$line"
+        fi 
+    done 
+    
+    rm $outf 
+}
+
+list_file() {
+    ls "$1"
+}
+
+
+# Read arguments
+POSITIONAL=()
+while [[ $# -gt 0 ]]; do
+case $1 in
+    -P|--permanent) PERMANENT=true ;;
+    -h|-?|--help) _usage; exit 0 ;;
+    -*) echo "Invalid option '$1'" > /dev/stderr; exit 1 ;;
+    *) POSITIONAL+=("$1") ;;
+esac; shift;
+done
+main "${POSITIONAL[@]}"

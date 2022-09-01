@@ -1,0 +1,12 @@
+#!/bin/sh
+
+[ -z "$NOTES" ] && NOTES=$HOME/Notes
+
+open() {
+    [ -z "$1" ] && return
+    echo "Open: '$1'"
+    zathura "$1"
+}
+
+echo $NOTES
+tmenu <(find "$NOTES" -type f -name '*pdf') >(read i; open "$i")

@@ -1,0 +1,14 @@
+#!/bin/sh
+# A dmenu binary prompt script.
+# Gives a dmenu prompt labeled with $1 to perform command $2.
+# For example:
+#           Depricated
+# `./prompt "Do you want to shutdown?" "shutdown -h now"`
+# OR better: 
+# `./prompt "Do you want to shutdown?" \
+#       && shutdown -h now || echo "Dose not turn off"`
+
+_dmenu() { dmenu -i -p "$1" -nb darkred -sb red -sf white -nf gray; }
+
+printf "" | _dmenu "$1" 
+exit 0

@@ -1,0 +1,136 @@
+#!/bin/sh
+
+CACHE_DIR=$HOME/.cache/comiple
+mkdir -p "$CACHE_DIR"
+
+EDITOR=nvim
+
+
+# TODO: clean command to delete all cache files older then some amount
+
+
+default() {
+    [ -z "$FT" ] && FT="${filename##*.}" # Extension
+
+    # TODO: Move to external config file?
+    case "$FT" in
+        tex) echo "_pdflatex '$filename'" ;;
+        c)   echo "gcc '$filename' && ./a.out" ;;
+        sh)  echo "sh '$filename'" ;;
+        py|python) echo "python '$filename'" ;;
+        vim) echo "Test" ;;
+        *)   echo "" # > /dev/stderr
+    esac;
+}
+
+getline() {
+    if [ -f "$lstpath" ]; then  
+        tail -n 1 "$lstpath" | tr -d '\n'
+    else 
+        default "$1" 
+    fi
+}
+
+getcmd() { 
+    getline | _insert -srcin -r -key "%" <(printf '"%s"\0' "$filename")
+}
+
+new_cmd() {
+    # printf '\n' >> "$lstpath"
+    tee -a "$lstpath";
+}
+
+main() {
+    filename="$1"
+    path="$(realpath "$1")"
+    hash="$(echo "$path" | sha1sum | head -c 20)"
+
+    lstpath="$CACHE_DIR/$hash.lst"
+    
+    $HISTORY && {
+        cat "$lstpath"; exit 0
+    }
+    $CLEAR && {
+        line="$(getline)"
+        printf "%s\n" "$line" > "$lstpath"
+    }
+    $DMENU && {
+        line="$(echo "" | dmenu -p '> ')"
+        printf "%s\n" "$line" | new_cmd
+        exit 0
+    }
+    $STDIN && {
+        < /dev/stdin new_cmd;
+        exit 0
+    }
+    $LINE && {
+        printf "> "
+        read line; 
+        printf "%s\n" "$line" | new_cmd
+        exit 0
+    }
+    $MODIFY && {
+        temp="$(mktemp)"
+        getline > $temp
+        $EDITOR $temp
+        echo "'$filename'"
+        cat $temp | new_cmd
+        rm $temp
+        exit 0
+    }
+    $PRTLINE && { getline; exit 0; }
+    $PRINT && { getcmd; exit 0; }
+
+    # Execute
+    cmd="$(getcmd)"; echo "$ $cmd"; 
+    printf "%s" "$cmd" | bash
+} 
+
+STDIN=false
+LINE=false
+DMENU=false
+PRINT=false
+MODIFY=false
+PRTLINE=false
+
+HISTORY=false
+CLEAR=false
+
+usage() { 
+  echo "$0 [options]"
+  echo "options:"
+  echo "  -ft, --filetype  spcify what filetype to compile as"
+  echo "  -pl, --prtline   print the stored 'line', "
+  echo "            (ie. without replacing variables, like % => filepath)"
+  echo "  -p,  --print     print the stored 'command',"
+  echo "            (ie. after replacing variables, like % => filepath)"
+  echo "  -i,  --stdin     set the 'line' to the data read from stdin"
+  echo "  -dm, --dmenu     set the 'line' to the data read dmenu"
+  echo "  -m,  --modify    modify the stored 'line' using vim"
+  echo "       --hist      print all stored 'lines'"
+  echo "       --clear     delete all stored 'lines'"
+  echo "  -h,  --help      print this message"
+} 
+
+# Read arguments
+POSITIONAL=()
+while [[ $# -gt 0 ]]; do
+case $1 in
+    --filetype|-ft) FT="$1"; shift ;; 
+    --stdin|-i)     STDIN=true ;;
+    --line|-l)      LINE=true ;;
+    --prtline|-pl)  PRTLINE=true ;;
+    --dmenu|-dm)    DMENU=true ;;
+    --print|-p)     PRINT=true ;;
+    --modify|-m)    MODIFY=true ;;
+##########
+    --hist)         HISTORY=true ;;
+    --clear)        CLEAR=true ;;
+    -h|-?|--help)   usage; exit 0 ;;
+    -*) echo "Invalid option '$1'" > /dev/stderr; exit 1 ;;
+    *) POSITIONAL+=("$1") ;;
+esac; shift;
+done
+set -- "${POSITIONAL[@]}"
+ 
+main "$@"

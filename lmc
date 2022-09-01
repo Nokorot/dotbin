@@ -7,26 +7,11 @@ mpd_port=6000
 
 # TODO: If state == ytpl
 
-case "$1" in
-	u*) pulsemixer --change-volume +"$num" ;;
-	d*) pulsemixer --change-volume -"$num" ;;
-	m*) pulsemixer --toggle-mute ;;
-	truemute) pulsemixer --mute ;;
-	play) ytplc play ;;
-	n*)   ytplc next ;;
-	# Not implemented: prev) ytplc prev ;;
-	t*)   ytplc toggle ;;
-	p*)   ytplc pause ;;
-	s*)   ytplc seek +"$num" ;;
-	# play) mpc -p $mpd_port play ;;
-	# n*)   mpc -p $mpd_port next ;;
-	# prev) mpc -p $mpd_port prev ;;
-	# t*)   mpc -p $mpd_port toggle ;;
-	# p*)   mpc -p $mpd_port pause ; pauseallmpv ;;
-	# f*)   mpc -p $mpd_port seek +"$num" ;;
-	# b*)   mpc -p $mpd_port seek -"$num" ;;
-	# r*)   mpc -p $mpd_port seek 0% ;;
-	*) cat << EOF
+# TODO  switch between states
+
+
+usage() {
+    cat << EOF
 lmc: cli music interface for mpd and pulse for those with divine intellect too
 grand to remember the mpc/pamixer commands.
 
@@ -47,7 +32,44 @@ Allowed options:
 All of these commands, except for \`truemute\`, \`prev\` and \`play\` can be truncated,
 i.e. \`lmc r\` for \`lmc restart\`.
 EOF
-esac
+}
+
+options=(
+    # Volume
+    "up", "down", "mute-tuggle", "mute", "unmute",
+    # Player 
+    "tuggle", "play", "next", "prev", "forword", "back",
+)
+opts="$(echo "${options[@]}" | sed 's/ //g')"
+
+main() {
+    case "$1" in
+        dmenu) {
+            action="$(echo "$opts" | tr ',' '\n' | dmenu)";
+            [ -z $action ] || main "$action";
+        };;
+    	u*) pulsemixer --change-volume +"$num" ;;
+    	d*) pulsemixer --change-volume -"$num" ;;
+    	m*) pulsemixer --toggle-mute ;;
+    	truemute) pulsemixer --mute ;;
+    	play) ytplc play ;;
+    	n*)   ytplc next ;;
+    	# Not implemented: prev) ytplc prev ;;
+    	t*)   ytplc toggle ;;
+    	p*)   ytplc pause ;;
+    	s*)   ytplc seek +"$num" ;;
+    	# play) mpc -p $mpd_port play ;;
+    	# n*)   mpc -p $mpd_port next ;;
+    	# prev) mpc -p $mpd_port prev ;;
+    	# t*)   mpc -p $mpd_port toggle ;;
+    	# p*)   mpc -p $mpd_port pause ; pauseallmpv ;;
+    	# f*)   mpc -p $mpd_port seek +"$num" ;;
+    	# b*)   mpc -p $mpd_port seek -"$num" ;;
+    	# r*)   mpc -p $mpd_port seek 0% ;;
+    esac
+}
+ 
+main "$@"
 
 
 pkill -RTMIN+10 i3blocks

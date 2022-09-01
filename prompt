@@ -1,18 +1,40 @@
 #!/bin/sh
-# A dmenu binary prompt script.
-# Gives a dmenu prompt labeled with $1 to perform command $2.
 # For example:
-#           Depricated
-# `./prompt "Do you want to shutdown?" "shutdown -h now"`
-# OR better: 
 # `./prompt "Do you want to shutdown?" \
 #       && shutdown -h now || echo "Dose not turn off"`
 
-# Custimisable and default sould read from a lang file
 YES="Yes"; NO="No" 
 
-_dmenu() { dmenu -i -p "$1" -nb darkred -sb red -sf white -nf gray; }
+_dmenu() { 
+    dmenu -i -p "$1" -nb darkred -sb red -sf white -nf gray; 
+}
 
-[ "$(printf "$NO\\n$YES" | _dmenu "$1" )" = "$YES" ] || exit 1 
-[ -z "$2" ] || (echo "$2" | bash)  # Depricated 
+main() {
+  [ "$(printf "$NO\\n$YES" | _dmenu "$1" )" = "$YES" ] || exit 1 
+}
 
+_usage() { 
+  echo "$ prompt [options] <Prompt>"
+  echo ""
+  echo "Yes/No prompt using dmenu."
+  echo "Exits with value 0 if Yes and 1 if No."
+  echo ""
+  echo "options:"
+  echo "  -h, --help      print this message"
+  echo ""
+  echo "Example:"
+  echo "  $ ./prompt \"Do you want to shutdown?\" \\"
+  echo "         && shutdown -h now || echo \"Dose not turn off\""
+} 
+
+
+# Read arguments
+POSITIONAL=()
+while [[ $# -gt 0 ]]; do
+case $1 in
+  -h|-?|--help) _usage; exit 0 ;;
+  -*) echo "Invalid option '$1'" > /dev/stderr; exit 1 ;;
+  *) POSITIONAL+=("$1") ;;
+esac; shift;
+done
+main "${POSITIONAL[@]}"

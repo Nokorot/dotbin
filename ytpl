@@ -24,6 +24,7 @@ _usage() {
     echo "  -s, --shuffel   shuffel the playlist"
     echo "  -p, --pause     start in a paused mode"
     echo "  -l, --loop      replay playlist when done"
+    echo "  -f, --format    spesify format that is passes to youtube-dl"
 }
 
 play() {
@@ -31,10 +32,13 @@ play() {
     mkdir -p "/tmp/mpv"
     while read i; do
         echo "Reading \"$i\""
-        url="$(youtube-dl -x -g "$i" 2> /dev/null)"  || continue
+
+        ytdl_args="-x -g"
+        [ -z "$FORMAT" ] || ytdl_args="$ytdl_args -f $FORMAT"
+        url="$(youtube-dl $ytdl_args "$i" 2> /dev/null)"  || continue
 
         new_ipc=$(mktemp "/tmp/mpv/mpvsocket_XXXXX")
-        mpv "$url" --pause --input-ipc-server="$new_ipc" &
+        mpv "$url" --pause --no-video --input-ipc-server="$new_ipc" &
         new_pid=$!
     
         sleep 1
@@ -64,12 +68,18 @@ play() {
 main() {
     [ -z "$1" ] && { _usage; exit 1; }
  
+    echo $1
     ## TODO: When looping, the next 'song' is not loaded at the end of the list. 
     ## Not a big problem when the list is long.
+    
+    # listfd="$(mktemp -u)"
+    # mkfifo -m 600 "$listfd"
     while true; do
-        cat "$@" | 
-            ( $SHUFFEL && shuf || cat ) |
-            play
+        if [ $SHUFFEL ]; then
+            cat "$@" | shuf | play
+        else 
+            cat "$@" | play
+        fi
         $LOOP || break;
     done
 }
@@ -87,6 +97,7 @@ case $1 in
     -s|--shuffel) SHUFFEL=true ;;
     -p|--pause)   PAUSE=true ;;
     -l|--loop)    LOOP=true ;;
+    -f|--format)  FORMAT="$2"; shift ;;
     -*) _invopt ;;
     *) POSITIONAL+=("$1") ;;
 esac; shift;

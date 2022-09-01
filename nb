@@ -1,73 +1,155 @@
 #!/bin/bash
 
+source .uservars
 [ -z $NOTEBOOK_DIR ] && NOTEBOOK_DIR="~/NOTEBOOK"
 
+PRINT=false
+NEWWIN=false
+DELETE=false
+RENAME=false
+
+_dmenu() {
+    dmenu -i -l 20 
+}
+
+_menu() {
+  cat "$1" | _dmenu > "$2"
+  # _tmenu $1 $2
+}
 
 list(){
     ls "$NOTEBOOK_DIR" | grep 'md$' | sed 's/.md$//'
 }
 
-dmenu_browse() {
-    echo "$(list | dmenu)" # || return
-    # urxvt -e nvim "$name.md"
-}
-
 open() {
-    echo $1
-
-    $NEWWIN && { urxvt -e nvim -p "$@"; } \
+    $NEWWIN && { ONSTART="nvim -p \"$@\"" $TERMINAL; } \
         || nvim -p "$@";
 }
 
+
+choose() {
+  [ -z "$1" ] || { echo "$1"; return; }
+  _menu <( list ) $2
+}
+
+delete() {
+  [ -z "$1" ] && return
+  prompt "Do you realy want delete '$1'?" && \
+      rm "$1.md"
+}
+
+rename() {
+  [ -z "$1" ] && return
+  namef=$(mktemp)
+  printf "%s" "$1" > $namef
+
+  $NEWWIN && { ONSTART="nvim \"$namef\"" $TERMINAL; } \
+      || nvim "$namef";
+
+  newname="$(< $namef sed q1)"
+  rm $namef 
+
+  ## TODO: Check that the name is not problematic
+  case $newname in
+    $1) return ;;
+
+    _*) printf "ERROR: The filename may not start with underscore\n" \
+            > /dev/stderr;
+        exit 1;;
+    */*) printf "ERROR: The filename may not contain '/' \n" \
+            > /dev/stderr;
+        exit 1;;
+    "") printf "ERROR: The filename may not be empty \n" \
+            > /dev/stderr;
+        exit 1;;
+  esac
+
+  # if ! [[ $newname =~ ^[a-zA-Z]+$ ]]; then
+  #   printf "ERROR: Invalid filename '$newname' \n" \
+  #           > /dev/stderr;
+  #   exit 1;
+  # fi
+
+  mv "$1.md" "$newname.md";
+}
+
 main() {
-    [ -d $NOTEBOOK_DIR ] || mkdir $NOTEBOOK_DIR
-    cd "$NOTEBOOK_DIR";
+  [ -d "$NOTEBOOK_DIR" ] || mkdir $NOTEBOOK_DIR
+  cd "$NOTEBOOK_DIR";
+ 
+  choisef=$(mktemp)
 
-    $BROWSE && {
-        note="$(dmenu_browse).md"
-        NEWWIN=true
-    } || {
-        note="$1.md"
-    }
+  $RENAME && { 
+      choose "$1" $choisef || exit 0;
+      rename "$(cat $choisef)"; 
+      rm $choisef 
+      exit 0;
+  }
+  $DELETE && { 
+      choose "$1" $choisef || exit 0;
+      delete "$(cat $choisef)"; 
+      rm $choisef 
+      exit 0;
 
-    $PRINT && {
-        [ -f $note ] && cat "$note"
-        return
-    }
+      note=$(choose "$1") || exit 0;
+      delete "$note"; 
+      exit 0; 
+  }
+  $PRINT && { 
+      choose "$1" $choisef || exit 0;
+      delete "$(cat $choisef)"; 
 
-    [ -f "$note" ] && open "$note" \
-        || open .
+      note="$(cat $choisef)"
+      [ -f "$note" ] && cat "$note"; exit 0; 
+      rm $choisef 
+      exit 0; 
+  }
+
+  [ -z "$1" ] || { 
+      open "$1.md"; 
+      exit 0; 
+  }
+
+  cases="_New,_Remove,_Rename"
+  _menu <( list; echo "$cases" | tr , '\n'; ) $choisef
+  choise="$( { list; echo "$cases" | tr , '\n'; } | _dmenu)" \
+      || exit 0
+
+  case "$choise" in
+      "_New") 
+        fn="$(_dmenu)" || exit 0;
+        open "$fn.md" ;;
+      "_Remove") delete "$(choose)" ;;
+      "_Rename") rename "$(choose)";;
+      *)         echo Hey; open "$choise.md" ;;
+  esac;
 }
 
 _usage() { 
-    echo "nb - notebook managment script"
+    echo "$ nb [OPTIONS] [note]"
+    echo ""
+    echo "Notebook managment script"
     echo ""
     # echo " Description "
     # echo ""
     echo "options:"
-    echo "  -b, --browse    browse the notebook files with dmenu"
-    echo "  -p, --print     print the content of notebook"
-    echo "  -nw, --newwin   open in new window"
-    echo "  -h, --help      print this message"
+    echo "  -p,  --print     print the content of notebook"
+    echo "  -nw, --newwin    open in new window"
+    echo "  -d,  --delete    delete note"
+    echo "  -rn, --rename    rename note"
+    echo "  -h,  --help      print this message"
 }
-
-_invopt() {
-    echo "Incorrect options provided '$1'"; usage; exit 1
-}
-
-BROWSE=false
-PRINT=false
-NEWWIN=false
 
 # Read arguments
 POSITIONAL=()
 while [[ $# -gt 0 ]]; do
 case $1 in
-    --browse) BROWSE=true ;;
-    --print|-p) PRINT=true ;;
-    --newwin|-nw) NEWWIN=true ;;
-    -h|-?|--help) _usage; exit 0 ;;
-    -*) _invopt ;;
+    --print|-p)     PRINT=true ;;
+    --delete|-d)    DELETE=true ;;
+    --rename|-rn)   RENAME=true ;;
+    --newwin|-nw)   NEWWIN=true ;;
+    -h|-?|--help)   _usage; exit 0 ;;
+    -*) echo "Incorrect options provided '$1'"; exit 1 ;;
     *) POSITIONAL+=("$1") ;;
 esac; shift;
 done

@@ -1,0 +1,25 @@
+#!/bin/sh
+
+tmpdir=$(mktemp -d)
+
+cd $tmpdir
+
+echo "\documentclass[border=1pt]{standalone}
+
+% Packages
+\\usepackage{amsfonts,amsmath,amssymb,amsthm}
+
+\\begin{document}
+\$ $1 \$
+\\end{document}" > $tmpdir/file.tex
+
+pdflatex "$tmpdir/file.tex" > /dev/null
+
+# TODO: viu <file>
+
+mupdf -r 5000 "$tmpdir/file.pdf" &
+pid=$!
+
+## TODO: Save as, copy, ....
+echo "quit" | dmenu 
+kill $pid

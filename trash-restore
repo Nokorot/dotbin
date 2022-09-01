@@ -1,0 +1,41 @@
+#!/bin/sh
+
+source "$HOME/.bin/_trash.sh"
+
+# 1 : tmenu,  2: dmenu
+CHOOSE=1; 
+
+_dmenu() { dmenu -l 20; }
+_tmenu() { tmenu "$@"; } # TODO: ms
+
+
+[ -z "$(ls $TrashDir/files)" ] && {
+    printf "%s\n" "The Trash Folder is empty!"
+    exit 0
+}
+
+choose() {
+  case $CHOOSE in
+    1) # tmenu 
+      _tmenu <(listFiles) "$1" ;;
+    2) # dmenu
+      listFiles | dmenu > "$1" ;; 
+  esac;
+}
+
+main() {
+  choisef="$(mktemp)"
+  choose $choisef
+  [ -s "$choisef" ] || exit 0
+
+  cat $choisef
+  
+  file="$(< "$choisef" filenameFromLine)"
+
+  echo $file
+
+  restore "$file"
+  
+  rm $choisef
+}
+main "$@"
