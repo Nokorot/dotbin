@@ -1,0 +1,14 @@
+#!/bin/sh
+
+## Play youtube music stream in the backgroud. 
+# - The scripts reads the url from the clipboard
+
+
+cb=$(xclip -selection clipboard -o)
+
+url="$(youtube-dl -xg -f 91 "$cb")" || {
+    notify-send "youtube-dl failed! The clipboard contains '$cb'"
+    exit 1
+}
+
+mpv --no-vid "$url"

@@ -1,0 +1,9 @@
+#!/bin/sh
+
+# Desctiption
+# This is mostly a test for now. The idea is to search for todos, list them with tmenu, and open the selection with vim.
+
+tmenu <(grep -r 'TODO' src | sed 's,:.*//,:,' | ./align +a ':' '//' +a ':') /tmp/tmp.file
+
+nvim "$(cat /tmp/tmp.file | sed 's,:.*$,,')"
+

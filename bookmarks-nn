@@ -1,0 +1,27 @@
+#!/bin/sh
+
+[ -z "$BOOKMARKS_FILE" ] && {
+    BOOKMARKS_FILE="$HOME/.config/BraveSoftware/Brave-Browser/Default/Bookmarks"
+}
+
+jq_script='
+def _fn(dir): 
+    if .type == "url" then 
+        {(dir + .name): (.url)} 
+    else 
+        (.name as $par | .children[] | _fn($par + "/")) 
+    end; 
+.roots.bookmark_bar.children | map(_fn("")) | add'
+
+extract_bookmars() {
+    jq "$jq_script" "$BOOKMARKS_FILE"
+}
+
+
+open() {
+    [ -z "$1" ] && exit
+    $BROWSER "$1"
+}
+
+dmenu -i -j <(extract_bookmars) -l 20 | { read i; open "$i"; }
+

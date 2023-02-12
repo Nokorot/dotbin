@@ -1,8 +1,13 @@
 #!/bin/bash
 
+source ~/.uservars
+
 options="-quality 98"
-savepath="$HOME/LMedia/Pictures/"
 preview="feh"
+
+[ -z $PICTURES ] && PICTURES="$HOME/Pictures/"
+savepath="$PICTURES/"
+mkdir -p $savepath
 
 tmpimg=$(mktemp -u).png
 savefile() {
@@ -22,8 +27,13 @@ while true; do
     res="$(printf "quit\nsave\nsave as\npreview\ndragon" | dmenu -p "ScreenShot: ")"
     case "$res" in
         quit | "") break ;;
-        save) cp "$tmpimg" "$(savefile)" ;;
-        saveas) fp="$(echo $savepath | dmenu)" && cp "$tmpimg" "$fp" ;;
+        save) 
+            cp "$tmpimg" "$(savefile)" ;
+            notify-send "Screenshot saved to $(savefile)";;
+        "save as") 
+            fp="$(printf "$savepath\n$(savefile)" | dmenu)" || continue;
+            cp "$tmpimg" "$fp";
+            notify-send "Screenshot saved to $(fp)";;
         dragon) dragon-drop --and-exit "$tmpimg" ;;
         preview) 
             [ -z "$child" ] && {
@@ -35,7 +45,6 @@ while true; do
                 feh -. "$tmpimg" &
                 child="${!}";
 
-                    
             } ;;
         # copy) 
     esac

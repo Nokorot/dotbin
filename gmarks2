@@ -21,6 +21,10 @@
 #1	22	8. Conditional Expectation
 #1	24	9. Appendix: Lebesgue measure. Caratheodory extension
 
+# TODO ::
+ - Comments in the otl format
+
+#end TODO
 
 pages() { pdfinfo "$1" | grep Pages | sed 's/^[^:]*:\s*//'; }
 

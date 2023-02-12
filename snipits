@@ -88,7 +88,9 @@ main() {
   fi
     
   # Note: I'm lasy, this printing is because I'm expecting something in vim
-  [ -z "$choise" ] && { echo "<CSR>"; exit 0; }
+  [ -z "$choise" ] && { 
+      # echo "<CSR>"; 
+        exit 0; }
   push "$choise" > /dev/stdout
 }
 

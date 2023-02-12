@@ -3,13 +3,17 @@
 # Args:
 PERMANENT=false
 
+## Description
+# use tmenu multiselect to delete files
+
+
 main() {
     outf=$(mktemp)
     tmenu -ms <( ls "$@" ) $outf
     
     cat $outf | while read line; do
         if $PERMANENT; then  
-            rm "$line"
+            rm -- "${line}"
         else 
             gio trash "$line"
         fi 
@@ -20,6 +24,13 @@ main() {
 
 list_file() {
     ls "$1"
+}
+
+_usage() { 
+  echo "$0 [options]"
+  echo "options:"
+  echo "  -h, --help        print this message"
+  echo "  -P, --permanent   delites the file(s) permanently"
 }
 
 

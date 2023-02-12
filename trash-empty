@@ -26,7 +26,7 @@ main() {
   $ALL && { empty; exit 0; }
 
   _tmenu <(listFiles) >( \
-    fileFromLine | while read i; do delPerm "$i"; done; )
+    filenameFromLine | while read i; do delPerm "$i"; done; )
 } 
 
 _usage() { 

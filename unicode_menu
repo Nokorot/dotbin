@@ -1,0 +1,88 @@
+#!/bin/bash
+# By Luke Smith: https://github.com/lukesmithxyz/voidrice
+
+# Give dmenu list of all unicode characters to copy.
+# Shows the selected character in dunst if running.
+
+# Must have xclip installed to even show menu.
+# xclip -h > /dev/null || exit
+
+unicode_file="$HOME/.config/emoji3"
+
+# echo "$1"
+# < ".config/emoji" dmenu -i -l 20
+
+# TODO: Maybe divide the search into stages and change
+#           the font depending on which category/file is opended
+# chosen=$(_dml_cmp "$unicode_file" | dmenu -i -l 20 -fn "NotoColorEmoji.tff" | sed "s/ .*//")
+
+## chosen=$(_dml_cmp "$unicode_file" | dmenu -i -l 20 -fn "NotoColorEmoji.tff" | sed "s/ .*//")
+
+# The amout of delay before the character is inserted.
+#  If the delay is 0, the character might be inserted before the menu is closed 
+INSERT_DELAY=1
+
+
+INSERT=false
+WINID=""
+
+STDOUT=false
+
+
+set -e
+_select() {
+    read char 
+
+    if $INSERT; then  
+        # { sleep $INSERT_DELAY;  xdotool type "$char"; }
+
+        if [ -z "$WINID" ]; then  
+            xdotool type "$char";
+            notify-send "'$char' inserted."
+        else 
+            # Note: This might be anying
+            xdotool windowfocus "$WINID"
+
+            xdotool type --window "$WINID" "$char";
+            notify-send "'$char' inserted into $WINID."
+        fi
+    fi
+
+    if $STDOUT; then
+        printf "$char"
+    fi
+
+    if ! ($INSERT || $STDOUT); then
+        # For some unknown reason, the script doesn't quit, when using xclip
+        # xclip -selection clipboard <( printf "$char" )
+        printf "$char" | xsel -i -b
+        notify-send "'$char' copied to clipboard."
+    fi
+
+}
+
+main() {
+    tmenu $unicode_file >( cut -f1 $choisef | tr -d ' ' | _select )
+}
+
+_usage() { 
+  echo "$0 [options]"
+  echo "options:"
+  echo "  -i, --insert    insert the selected character using xdotool"
+  echo "  -h, --help      print this message"
+}
+
+# Read arguments
+POSITIONAL=()
+while [[ $# -gt 0 ]]; do
+case $1 in
+    -o|--stdout) STDOUT=true ;;
+    -i|--insert) INSERT=true ;;
+    -w|--window) WINID=$2; shift ;;
+    -h|--help) _usage; exit 0 ;;
+    -*) echo "Invalid option '$1'" > /dev/stderr; exit 1 ;;
+    *) POSITIONAL+=("$1") ;;
+esac; shift;
+done
+
+main "${POSITIONAL[@]}"

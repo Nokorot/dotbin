@@ -1,0 +1,103 @@
+#!/usr/bin/python3
+
+import smtplib #importing the module
+import sys, os, optparse
+
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
+from email.mime.base import MIMEBase
+from email import encoders
+
+from libs.passwd import Passwd
+
+# TODO: PASS_FILE could be an ennvintment variable
+PASS_FILE = os.environ.get("HOME") + '/.local/share/my_passwd'
+
+__description = """
+A simple python script that sends a file to my kindle using email.
+Note that both the sender- and kindle email are hard coded.
+
+Using gpg, the senders email password (in the case of gmail, an app password) is stored in an encrypted file (password file: "%s")
+""" % (PASS_FILE)
+
+kindle_email='torhaakon2012_UTJkj4@kindle.com'
+# Note that to get gmail to work, I had to make an app password.
+senders_email='torhoaakon@gmail.com'
+passwd_key="sendToKindle_senders_password-gmail"
+
+def get_passwd(passwd):
+    return passwd.get(passwd_key, input_prompt="Please input the password of the senders email")
+
+def main(passwd, args):
+    file = args[1]
+    
+    senders_password = get_passwd(passwd)
+    message = constructMessage(senders_email, kindle_email, file)
+    sendEmail(senders_password, senders_password, kindle_email, message)
+
+def constructMessage(sender_add, receiver_add, file):
+    message = MIMEMultipart()
+    
+    message["From"] = sender_add
+    message['To'] = receiver_add
+    message['Subject'] = "Email from python"
+    
+    attach = open(file, "rb")
+    
+    obj = MIMEBase('application','octet-stream')
+    
+    obj.set_payload((attach).read())
+    encoders.encode_base64(obj)
+    obj.add_header('Content-Disposition',"attachment; filename= "+file)
+    
+    message.attach(obj)
+    attach.close()
+    return message.as_string()
+
+def sendEmail(sender_add, password, receiver_add, message):
+    #creating the SMTP server object by giving SMPT server address and port number
+    smtp_server=smtplib.SMTP("smtp.gmail.com",587)
+    smtp_server.ehlo()
+    smtp_server.starttls() 
+    smtp_server.ehlo() 
+    
+    smtp_server.login(sender_add,password)
+    
+    smtp_server.sendmail(sender_add, receiver_add, message)
+    print('Successfully the mail is sent') 
+    
+    smtp_server.quit() #terminating the server
+
+
+def argparse_callback(option, opt_str, value, parser, passwd):
+    if str(option) == "--update-pass":
+        passwd.update(passwd_key, value)
+        # passwd.save_file()  # TODO: Save on exit
+    if str(option) == "--get-pass":
+        print("Passwd: '%s'" % get_passwd(passwd))
+    if str(option) == "--pass-file":
+        print(PASS_FILE)
+    exit(0)
+
+if __name__ == "__main__":
+    passwd = Passwd(PASS_FILE, show_pass=True, save_on_exit=True)
+
+    usage = "%prog [options] <arg1>"
+
+    parser = optparse.OptionParser(usage = usage, description=__description)
+    def add_cbopt(*args, **kwargs):
+        parser.add_option(*args, action='callback', callback=argparse_callback, 
+                          callback_args=( passwd, ), **kwargs)
+
+    add_cbopt('--update-pass', dest="password", type='string', help='update the pasword of the senders email')
+    add_cbopt('--get-pass',  help='print the pasword of the senders email, that is currently stored')
+    add_cbopt('--pass-file', help='print the path of the file where the pasword is currently stored')
+
+    (options, args) = parser.parse_args()
+
+    if len(args) < 1:
+       sys.stderr.write('ERROR: Not enough arguments!\n');
+       sys.stderr.write('use -h for more infromation.\n')
+       sys.exit(1)
+
+    main(passwd, args)

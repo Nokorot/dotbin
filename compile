@@ -5,6 +5,8 @@ mkdir -p "$CACHE_DIR"
 
 EDITOR=nvim
 
+# TODO: Might want to make it dependent on vim instance or dir in stead of file
+
 
 # TODO: clean command to delete all cache files older then some amount
 
@@ -14,7 +16,12 @@ default() {
 
     # TODO: Move to external config file?
     case "$FT" in
-        tex) echo "_pdflatex '$filename'" ;;
+        tex)
+          [ -e '.compile.sh' ] && {
+            echo "./.compile.sh"
+          } || {
+            echo "_pdflatex '$filename'"
+          } ;;
         c)   echo "gcc '$filename' && ./a.out" ;;
         sh)  echo "sh '$filename'" ;;
         py|python) echo "python '$filename'" ;;
@@ -40,6 +47,18 @@ new_cmd() {
     tee -a "$lstpath";
 }
 
+_dmenu() {
+    args=""
+    # [ -z "$WINDOW" ] || args+="-w $WINDOW"; 
+    # [ "$WINDOW" == "current" ] 
+
+    dmenu -b  \
+        -sel "$(getline)" \
+        -w $(get_winId) \
+        -fn "monospace:size=20"
+        $args -j <(echo '{}')
+}
+
 main() {
     filename="$1"
     path="$(realpath "$1")"
@@ -55,7 +74,8 @@ main() {
         printf "%s\n" "$line" > "$lstpath"
     }
     $DMENU && {
-        line="$(echo "" | dmenu -p '> ')"
+        line="$(_dmenu)"
+        [ -z "$line" ] && exit
         printf "%s\n" "$line" | new_cmd
         exit 0
     }
@@ -121,6 +141,7 @@ case $1 in
     --line|-l)      LINE=true ;;
     --prtline|-pl)  PRTLINE=true ;;
     --dmenu|-dm)    DMENU=true ;;
+    --window|-w)    WINDOW="$2"; shift ;;
     --print|-p)     PRINT=true ;;
     --modify|-m)    MODIFY=true ;;
 ##########

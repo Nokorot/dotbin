@@ -7,14 +7,26 @@ PRINT=false
 NEWWIN=false
 DELETE=false
 RENAME=false
+MENU="dmenu"
+PERSISTENT=false
 
 _dmenu() {
     dmenu -i -l 20 
 }
 
+_tmenu() {
+    tmenu -i "$@"
+}
+
 _menu() {
-  cat "$1" | _dmenu > "$2"
-  # _tmenu $1 $2
+  case "$MENU" in
+      dmenu) 
+          cat "$1" | _dmenu > "$2";;
+      tmenu) 
+           _tmenu $1 $2;;
+       *)
+           echo "ERROR: Menu '$MENU' not supported";
+   esac
 }
 
 list(){
@@ -26,16 +38,21 @@ open() {
         || nvim -p "$@";
 }
 
-
 choose() {
-  [ -z "$1" ] || { echo "$1"; return; }
-  _menu <( list ) $2
+  [ -z "$2" ] || { 
+      CHOISE="$2"; return; 
+  }
+
+  choisef=$(mktemp)
+  _menu $1 $choisef
+  CHOISE=$(cat $choisef)
 }
 
 delete() {
-  [ -z "$1" ] && return
-  prompt "Do you realy want delete '$1'?" && \
-      rm "$1.md"
+  [ -z "$1" ] && return;
+
+  prompt "Do you realy want delete '$CHOISE'?" && \
+      rm "$CHOISE.md"
 }
 
 rename() {
@@ -74,55 +91,50 @@ rename() {
 }
 
 main() {
-  [ -d "$NOTEBOOK_DIR" ] || mkdir $NOTEBOOK_DIR
-  cd "$NOTEBOOK_DIR";
+  _FIRST=true
+    
+  while $_FIRST || $PERSISTENT; do
+    _FIRST=false
+    
+    [ -d "$NOTEBOOK_DIR" ] || mkdir $NOTEBOOK_DIR
+    cd "$NOTEBOOK_DIR";
  
-  choisef=$(mktemp)
+    $RENAME && { 
+        choose <(list) "$1"
+        rename "$CHOISE";
+        exit 0; 
+    }
+    $DELETE && { 
+        choose <(list) "$1"
+        delete "$CHOISE"; 
+        exit 0; 
+    }
+    $PRINT && {
+        choose <(list) "$1"
+        [ -z "$CHIOSE" ] && return;
+        cat "$CHIOSE"; 
+        exit 0;
+    }
 
-  $RENAME && { 
-      choose "$1" $choisef || exit 0;
-      rename "$(cat $choisef)"; 
-      rm $choisef 
-      exit 0;
-  }
-  $DELETE && { 
-      choose "$1" $choisef || exit 0;
-      delete "$(cat $choisef)"; 
-      rm $choisef 
-      exit 0;
+    cases="_New,_Remove,_Rename"
+    choose <( list; echo "$cases" | tr , '\n'; ) "$1"
+    [ -z "$CHOISE" ] && return
 
-      note=$(choose "$1") || exit 0;
-      delete "$note"; 
-      exit 0; 
-  }
-  $PRINT && { 
-      choose "$1" $choisef || exit 0;
-      delete "$(cat $choisef)"; 
+    # choise="$( { list; echo "$cases" | tr , '\n'; } | _dmenu)" \
+    #     || exit 0
 
-      note="$(cat $choisef)"
-      [ -f "$note" ] && cat "$note"; exit 0; 
-      rm $choisef 
-      exit 0; 
-  }
-
-  [ -z "$1" ] || { 
-      open "$1.md"; 
-      exit 0; 
-  }
-
-  cases="_New,_Remove,_Rename"
-  _menu <( list; echo "$cases" | tr , '\n'; ) $choisef
-  choise="$( { list; echo "$cases" | tr , '\n'; } | _dmenu)" \
-      || exit 0
-
-  case "$choise" in
-      "_New") 
-        fn="$(_dmenu)" || exit 0;
-        open "$fn.md" ;;
-      "_Remove") delete "$(choose)" ;;
-      "_Rename") rename "$(choose)";;
-      *)         echo Hey; open "$choise.md" ;;
-  esac;
+    case "$CHOISE" in
+        "_New") 
+            fn="$(echo "" | _dmenu)" || exit 0;
+            open "$fn.md" ;;
+        "_Remove") 
+            choose <(list); delete "$CHOISE" ;;
+        "_Rename") 
+            choose <(list); rename "$CHOISE";;
+        *)        
+            open "$CHOISE.md" ;
+    esac;
+  done
 }
 
 _usage() { 
@@ -144,10 +156,12 @@ _usage() {
 POSITIONAL=()
 while [[ $# -gt 0 ]]; do
 case $1 in
+    --persistent|-pp)  PERSISTENT=true ;;
     --print|-p)     PRINT=true ;;
     --delete|-d)    DELETE=true ;;
     --rename|-rn)   RENAME=true ;;
     --newwin|-nw)   NEWWIN=true ;;
+    --menu)         MENU=$2; shift;;
     -h|-?|--help)   _usage; exit 0 ;;
     -*) echo "Incorrect options provided '$1'"; exit 1 ;;
     *) POSITIONAL+=("$1") ;;

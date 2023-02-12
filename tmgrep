@@ -1,0 +1,8 @@
+#!/bin/sh
+
+# See tmTODO
+
+echo "${@:2}"
+
+tmenu <(grep "${@:2}" | align +a ':') 
+
