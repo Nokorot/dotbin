@@ -1,0 +1,37 @@
+#!/bin/sh
+
+dir=src
+
+c_prop_prg="_vim_search_prep"
+
+
+hist_dir="/tmp/vim_search"
+mkdir -p $hist_dir
+
+# It would be nice with better names
+id=$(echo "$1" | sha1sum | cut -d' ' -f1)
+hist_file="$hist_dir/$id"
+
+_dmenu() {
+    dmenu -w $(get_winId) "$@"
+}
+
+get_search_text() {
+    sel=""
+    [ -f "$hist_file" ] && sel=$(cat "$hist_file")
+
+    printf '' | _dmenu -p '/' -l 1 -sel "$sel"
+}
+
+search_text="$(get_search_text)"
+[ -z "$search_text" ] && exit
+echo "$search_text" > $hist_file
+
+search() {
+    grep -Z -n -r "$search_text" $dir | $c_prop_prg "$search_text"
+}
+
+# search | jq keys
+
+_dmenu -jd 0 -j <( search )  -l 50 \
+    | jq -r '.filename, .line_num'
