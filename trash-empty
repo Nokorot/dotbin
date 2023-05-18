@@ -1,6 +1,6 @@
 #!/bin/sh
  
-source "$HOME/.bin/_trash.sh"
+source "$HOME/.bin/libs/_trash.sh"
 
 # Args:
 ALL=false
