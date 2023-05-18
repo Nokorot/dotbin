@@ -6,8 +6,7 @@ source "$HOME/.bin/_trash.sh"
 CHOOSE=1; 
 
 _dmenu() { dmenu -l 20; }
-_tmenu() { tmenu "$@"; } # TODO: ms
-
+_tmenu() { tmenu -ms "$@"; } # TODO: ms
 
 [ -z "$(ls $TrashDir/files)" ] && {
     printf "%s\n" "The Trash Folder is empty!"
@@ -30,12 +29,12 @@ main() {
 
   cat $choisef
   
-  file="$(< "$choisef" filenameFromLine)"
+  < "$choisef" filenameFromLine | while read file; do
+        echo "'$file'"
+        restore "$file"
+  done
+  exit 0
 
-  echo $file
-
-  restore "$file"
-  
   rm $choisef
 }
 main "$@"

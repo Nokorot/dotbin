@@ -1,29 +1,82 @@
 #!/bin/bash
 
-[ -z "$1" ] && {
-    echo "Not enough arguments! Expects $0 'texfile'"
-    exit 1
+LOG_DIR=".log"
+
+# export PDF_COMPILER="lualatex"
+[ -z "$PDF_COMPILER" ] && PDF_COMPILER="pdflatex"
+SINK=''
+
+# unset PDF_FILENAME
+CLEAN=false
+
+build() {
+    TEXFILE="$1"
+
+    job_name="$(echo "$TEXFILE" | sed 's,\.[^.]*,,')"
+    # job_name="${texfile%.tex}"
+    
+    echo $PDF_COMPILER
+
+    # Option: -interaction=nonstopmode
+
+	  mkdir -p "$LOG_DIR"
+    case "$PDF_COMPILER" in
+        lualatex) lualatex -output-directory="$LOG_DIR" \
+             "$TEXFILE" $SINK || return;;
+        pdflatex) pdflatex -output-directory="$LOG_DIR" \
+             "$TEXFILE" $SINK || return;;
+    esac;
+        
+    [ -z "$PDF_FILENAME" ] && PDF_FILENAME="$job_name.pdf"
+    [ -f "$LOG_DIR/$job_name.pdf" ] && \
+	      mv "$LOG_DIR/$job_name.pdf" "$PDF_FILENAME"
 }
 
-# echo "$1.tex"
-mkdir -p .log
+main () {
+    mkdir -p "$LOG_DIR"
 
-echo "'$1'"
-# if [[ 'test.tex' =~ '\.tex$' ]]; then echo Hey; fi
+    echo $1
+    $CLEAN && {
+        rm -r "$LOG_DIR"
+        exit 0;
+    }
 
-echo ${1::-4}
-if [ "${1: -4}" == ".tex" ]; then  
-    echo Hey
+    [ -z "$1" ] && {
+        echo "Not enough arguments! Expects $0 'texfile'"
+        exit 1
+    }
 
-    #name=$(printf '%s' "$1" | rev | cut -d'.' -f2- | rev)
-    name=${1::-4}
-else 
-    name="$1"
-fi
+    # $WATCH && { 
+    #     Check: https://superuser.com/questions/181517/how-to-execute-a-command-whenever-a-file-changes#181543
+    #     watchexec -e md make build "$1";
+    #     exit 0;
+    # }
 
-# pdflatex -output-directory=".log"  -synctex=1 -interaction=nonstopmode "$1.tex"
-pdflatex -output-directory=".log" -interaction=nonstopmode "$name.tex"
-mv ".log/$name.pdf" .
+    build "$1"
+}
 
+_usage() {
+    printf "Usage: $0 [-sc] <texfile> \n\t OPTIONS:\n"
+    printf "\t\t :  \topens the pdf file with 'gio open'.\n"
+    printf "\t\t -s, --silent: \tcompiles with minimal output.\n"
+    printf "\t\t -c, --clean:  \tremoves compile files.\n"
+    printf "\t\t -o, --output: \toutput filename\n"
+    # printf "\t\t watch: \trecomplies when file is changed.\n"
+}
 
+# Read arguments
+POSITIONAL=()
+while [[ $# -gt 0 ]]; do
+case $1 in
+    --print|-p)  PRINT=true ;;
+    -h|--help)   _usage; exit 2 ;;
+    -c|--clean)  CLEAN=true ;;
+    -s|--silent) SINK="> /dev/null" ;;
+    -o|--output) PDF_FILENAME="$2"; shift ;;
+    --compiler)  PDF_COMPILER="$2"; shift ;;
+    -*) echo "Invalid option '$1'" > /dev/stderr; exit 1 ;;
+    *) POSITIONAL+=("$1") ;;
+esac; shift;
+done
+main "${POSITIONAL[@]}"
 

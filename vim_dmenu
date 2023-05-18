@@ -1,0 +1,3 @@
+#!/bin/sh
+
+dmenu -w "$(get_winId)" -fn 'Ubuntu Mono:bold:pixelsize=24' "$@"

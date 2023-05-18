@@ -2,6 +2,8 @@
 
 source ~/.uservars
 
+_dmenu="dmenu";
+
 # TODO bmdir="$HOME/.config/dmenu_run.wlist.d"
 # brfile="$HOME/.config/gg-bookmarks"
 
@@ -24,15 +26,16 @@ run() {
 
 dmenu_search() {
     _dml_cmp $bmfile | \
-        cut -d' ' -f1 | dmenu -i -p "$prompt"
+        cut -d' ' -f1 | $_dmenu -i -p "$prompt"
 }
 
 usage() {
     echo "Usage: $0 [-c <file>] <choose>\\n   -c: dml-file, default '$bmfile' \\n" 1>&2; exit 1;}
 
-while getopts "hc:p:" o; do case "${o}" in
+while getopts "whc:p:" o; do case "${o}" in
+  w) _dmenu="dmenu-wl";; #wayland=true;;
 	c) bmfile=$OPTARG ;;
-    p) prompt=$OPTARG ;;
+  p) prompt=$OPTARG ;;
 	*) usage && exit ;;
 esac done
 

@@ -53,6 +53,7 @@ main () {
         [ -z $1 ] && run "$(dmenu_search)" \
             || run "$1";
     else 
+        echo "$1" >> ~/tmp.lnk
         [ -z $1 ] && store "$(xclip -o -selection clipboard)" \
             || store "$1";
     fi   

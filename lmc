@@ -48,9 +48,12 @@ main() {
             action="$(echo "$opts" | tr ',' '\n' | dmenu)";
             [ -z $action ] || main "$action";
         };;
-    	u*) pulsemixer --change-volume +"$num" ;;
-    	d*) pulsemixer --change-volume -"$num" ;;
-    	m*) pulsemixer --toggle-mute ;;
+    	u*) amixer set 'Master' "$num%+";; 
+                # pulsemixer --change-volume +"$num" ;;
+    	d*) amixer set 'Master' "$num%-";; 
+                # pulsemixer --change-volume -"$num" ;;
+    	m*) amixer set 'Master' toggle;; 
+    	          # pulsemixer --toggle-mute ;;
     	truemute) pulsemixer --mute ;;
     	play) ytplc play ;;
     	n*)   ytplc next ;;

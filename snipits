@@ -26,14 +26,18 @@ SNIPINDEX="$TEMPLATES/snipits/_index.json"
 # Flags:
 EMBEDED_CONTENT=false
 
+get_file() {
+    echo "$SNIPITS_FOLDER/$(echo "$1" | jq .File | xargs echo)"
+}
+
 push() {
-  file="$SNIPITS_FOLDER/$(echo "$1" | jq .File | xargs echo)"
+  file="$(get_file "$1")"
 
   tmpf=$(mktemp)
 
   # FIX: This is a hack: There is going to be problems if the key or value has characters like / \ , ...
   sed_ex="$(echo "$1" \
-      | jq '.Vars | to_entries | .[] | [ "<+" + .key + "+>", .value] 
+      | jq '.Vars | to_entries | .[] | [ "<+" + .key + "+>", .value]
         | join("/") | "s/" + . + "/g"' | xargs printf "%s;")"
 
   [ -f "$file" ] && {
@@ -44,7 +48,7 @@ push() {
     else
       cat "$file";
     fi
-  } | sed "$sed_ex" > $tmpf 
+  } | sed "$sed_ex" > $tmpf
 
   [ -z "$(cat $tmpf)" ] && echo "<CSR>" > $tmpf
 
@@ -60,16 +64,11 @@ push() {
 }
 
 dmenu_browse() {
-  dmenu -jd 0 -j <( node_index ) \
-        -fn 'Ubuntu Mono:bold:pixelsize=24' \
-        -w "$(get_winId)" 
-
-  # ls "$SNIP_FOLDER" \
-  #     | dmenu -w "$(get_winId)" -fn 'Ubuntu Mono:bold:pixelsize=24'
+  vim_dmenu -jd 0 -j <( node_index )
 }
 
 node_index() {
-    < "$SNIPINDEX" jq "[ ._common, .$NODE | .Snipits ] | add"
+    < "$SNIPINDEX" jq "[ .$NODE, ._common | .Snipits ] | add"
 }
 
 main() {
@@ -77,20 +76,17 @@ main() {
     echo "ERROR: not enough arguments provided!" > /dev/stderr
   }
 
-
   NODE="$1"
   SNIP_FOLDER="$SNIPITS_FOLDER/$1"
 
   if [ -z "$2" ]; then
     choise="$(dmenu_browse)";
-  else 
+  else
     choise="$(node_index | jq ".$2" )";
   fi
-    
-  # Note: I'm lasy, this printing is because I'm expecting something in vim
-  [ -z "$choise" ] && { 
-      # echo "<CSR>"; 
-        exit 0; }
+  [ -z "$choise" ] && { exit 0; }
+
+  $GET_FILE && { get_file "$choise"; exit 0; }
   push "$choise" > /dev/stdout
 }
 
@@ -109,6 +105,7 @@ _invopt() {
 
 INDENT=" "
 INDENT_MULTIPLIER=0
+GET_FILE=false
 
 # Read arguments
 POSITIONAL=()
@@ -118,6 +115,7 @@ case $1 in
   -e|--embed) EMBEDED_CONTENT=true;;
   -i|--indent) INDENT="$2"; shift;;
   -im|--indnt-multiplier) INDENT_MULTIPLIER="$2"; shift;;
+  -fn|--get-file) GET_FILE=true;;
   -*) _invopt 1&>2; exit 1 ;;
   *) POSITIONAL+=("$1") ;;
 esac; shift;

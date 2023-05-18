@@ -13,7 +13,7 @@ main() {
     
     cat $outf | while read line; do
         if $PERMANENT; then  
-            rm -- "${line}"
+            rm -r -- "${line}"
         else 
             gio trash "$line"
         fi 

@@ -29,11 +29,12 @@ def get_passwd(passwd):
     return passwd.get(passwd_key, input_prompt="Please input the password of the senders email")
 
 def main(passwd, args):
-    file = args[1]
+    file = args[0]
     
     senders_password = get_passwd(passwd)
+
     message = constructMessage(senders_email, kindle_email, file)
-    sendEmail(senders_password, senders_password, kindle_email, message)
+    sendEmail(senders_email, senders_password, kindle_email, message)
 
 def constructMessage(sender_add, receiver_add, file):
     message = MIMEMultipart()

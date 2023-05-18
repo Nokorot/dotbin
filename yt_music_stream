@@ -6,7 +6,7 @@
 
 cb=$(xclip -selection clipboard -o)
 
-url="$(youtube-dl -xg -f 91 "$cb")" || {
+url="$(yt-dlp -xg -f 91 "$cb")" || {
     notify-send "youtube-dl failed! The clipboard contains '$cb'"
     exit 1
 }
